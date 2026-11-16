@@ -1,6 +1,1 @@
-[
-  { "id": "bus-1", "routeId": "A", "lat": 40.7306, "lon": -73.9911 },
-  { "id": "bus-2", "routeId": "A", "lat": 40.7361, "lon": -73.9855 },
-  { "id": "bus-3", "routeId": "B", "lat": 40.7068, "lon": -73.9902 },
-  { "id": "bus-4", "routeId": "C", "lat": 40.7262, "lon": -73.9928 }
-]
+[{"id":"demo-A1","routeId":"74769","lat":40.71573,"lon":-73.99598},{"id":"demo-A2","routeId":"74769","lat":40.69978,"lon":-73.98632},{"id":"demo-B1","routeId":"74770","lat":40.72216,"lon":-73.99711},{"id":"demo-B2","routeId":"74770","lat":40.73007,"lon":-73.99108},{"id":"demo-C1","routeId":"74771","lat":40.73071,"lon":-73.9741},{"id":"demo-C2","routeId":"74771","lat":40.73168,"lon":-73.98337},{"id":"demo-E1","routeId":"74768","lat":40.73261,"lon":-73.98164},{"id":"demo-E2","routeId":"74768","lat":40.73644,"lon":-73.98489},{"id":"demo-F1","routeId":"74772","lat":40.73218,"lon":-73.98799},{"id":"demo-F2","routeId":"74772","lat":40.73265,"lon":-73.98767},{"id":"demo-G1","routeId":"74773","lat":40.73102,"lon":-73.99338},{"id":"demo-G2","routeId":"74773","lat":40.72891,"lon":-74.00859}]
