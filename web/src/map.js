@@ -3,6 +3,7 @@
 
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { readableTextColor } from './colors.js';
 
 const NYC_CENTER = [40.7205, -73.9925];
 
@@ -37,11 +38,8 @@ export function createMap(element, { onStopClick }) {
     const visibleStopIds = new Set();
 
     for (const route of routes) {
-      const points = route.stopIds
-        .map((id) => stopsById.get(id))
-        .filter(Boolean)
-        .map((stop) => [stop.lat, stop.lon]);
-      L.polyline(points, { color: route.color, weight: 4, opacity: 0.8 }).addTo(routeLayer);
+      // route.path is the road the bus actually drives: a list of lines, each a list of [lat, lon].
+      L.polyline(route.path, { color: route.color, weight: 5, opacity: 0.85 }).addTo(routeLayer);
       route.stopIds.forEach((id) => visibleStopIds.add(id));
     }
 
@@ -66,7 +64,8 @@ export function createMap(element, { onStopClick }) {
       const badge = document.createElement('span');
       badge.className = 'bus-marker';
       badge.style.background = route.color;
-      badge.textContent = route.id;
+      badge.style.color = readableTextColor(route.color);
+      badge.textContent = route.shortName;
       L.marker([vehicle.lat, vehicle.lon], {
         icon: L.divIcon({ html: badge, className: '', iconSize: [28, 28] }),
         title: `${route.name} bus`,
@@ -80,17 +79,23 @@ export function createMap(element, { onStopClick }) {
     }
   }
 
-  /** Highlight one stop and move the map to it. Pass null to clear. */
-  function selectStop(stopId) {
+  /** Highlight the given stops and move the map so they are all in view. Pass [] to clear. */
+  function highlightStops(stopIds) {
+    const chosen = [];
     for (const [id, marker] of stopMarkers) {
-      const selected = id === stopId;
+      const selected = stopIds.includes(id);
       marker.setStyle({ radius: selected ? 10 : 7, fillColor: selected ? '#facc15' : '#ffffff' });
       if (selected) {
         marker.bringToFront();
-        map.flyTo(marker.getLatLng(), Math.max(map.getZoom(), 15), { duration: 0.5 });
+        chosen.push(marker.getLatLng());
       }
+    }
+    if (chosen.length === 1) {
+      map.flyTo(chosen[0], Math.max(map.getZoom(), 16), { duration: 0.5 });
+    } else if (chosen.length > 1) {
+      map.flyToBounds(L.latLngBounds(chosen), { padding: [48, 48], maxZoom: 16, duration: 0.5 });
     }
   }
 
-  return { render, selectStop };
+  return { render, highlightStops };
 }

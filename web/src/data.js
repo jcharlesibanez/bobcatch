@@ -1,6 +1,7 @@
 // The one place the app gets transit data from.
 //
-// Right now it reads made-up files from /sample so the interface can be built
+// Right now it reads saved files from /sample (real stops and routes, made-up
+// buses and times; see public/sample/README.md) so the interface can be built
 // before the Bobcatch server exists. When the server is ready, change this
 // module to call it (for example /api/vehicles) and set IS_SAMPLE_DATA to
 // false. Nothing else in the app needs to know where the data came from.
@@ -20,7 +21,7 @@ async function getJson(name) {
 /**
  * Load everything the screen needs.
  * Shapes (see public/sample for examples):
- *   routes:   [{ id, name, color, stopIds: [stopId] }]
+ *   routes:   [{ id, shortName, name, color, stopIds: [stopId], path: [[[lat, lon]]] }]
  *   stops:    [{ id, name, lat, lon }]
  *   vehicles: [{ id, routeId, lat, lon }]
  *   arrivals: { [stopId]: [{ routeId, minutes }] }

@@ -13,7 +13,7 @@
     <div class="app">
       <header class="topbar">
         <h1 class="brand">Bobcatch</h1>
-        <span class="badge" id="data-badge" hidden>Sample data, not live</span>
+        <span class="badge" id="data-badge" hidden>Demo: buses and times are not live</span>
       </header>
 
       <main class="map" id="map" aria-label="Map of buses and stops"></main>
@@ -24,11 +24,34 @@
           <span class="visually-hidden">Show or hide the stop list</span>
         </button>
 
-        <div class="chips" id="route-chips" role="group" aria-label="Filter by route"></div>
+        <div class="tabs" role="tablist" aria-label="Views">
+          <button class="tab" id="tab-stops" type="button" role="tab" aria-selected="true" aria-controls="view-stops">Stops</button>
+          <button class="tab" id="tab-plan" type="button" role="tab" aria-selected="false" aria-controls="view-plan">Plan a trip</button>
+        </div>
 
         <div class="panel-body" id="panel-body">
-          <p class="status" id="status" role="status">Loading…</p>
-          <ul class="stops" id="stop-list"></ul>
+          <section id="view-stops" role="tabpanel" aria-labelledby="tab-stops">
+            <div class="chips" id="route-chips" role="group" aria-label="Filter by route"></div>
+            <p class="status" id="status" role="status">Loading…</p>
+            <ul class="stops" id="stop-list"></ul>
+          </section>
+
+          <section id="view-plan" role="tabpanel" aria-labelledby="tab-plan" hidden>
+            <form class="plan-form" id="plan-form">
+              <label class="field">
+                <span>From</span>
+                <select id="plan-from" required></select>
+              </label>
+              <button class="swap" id="plan-swap" type="button" aria-label="Swap from and to">⇅</button>
+              <label class="field">
+                <span>To</span>
+                <select id="plan-to" required></select>
+              </label>
+            </form>
+            <ul class="trip-options" id="plan-results" aria-live="polite"></ul>
+            <p class="hint">Direct NYU buses and walking only. No transfers or subway yet. Times are estimates.</p>
+          </section>
+
           <p class="disclaimer">
             Unofficial student project. Not affiliated with, endorsed by, or operated by
             New York University or Passio Technologies. Times may be delayed or wrong.

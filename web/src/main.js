@@ -1,6 +1,8 @@
 import './style.css';
 import { loadTransitData, IS_SAMPLE_DATA } from './data.js';
 import { createMap } from './map.js';
+import { readableTextColor } from './colors.js';
+import { setUpPlanView } from './plan-view.js';
 
 const chipsEl = document.getElementById('route-chips');
 const listEl = document.getElementById('stop-list');
@@ -43,7 +45,7 @@ function selectStop(stopId) {
   // Tapping the open stop again closes it.
   state.stopId = state.stopId === stopId ? null : stopId;
   renderStops();
-  map.selectStop(state.stopId);
+  map.highlightStops(state.stopId ? [state.stopId] : []);
   if (state.stopId) {
     setPanelCollapsed(false);
     listEl.querySelector('[aria-expanded="true"]')?.scrollIntoView({ block: 'nearest' });
@@ -61,15 +63,19 @@ function renderMap() {
 }
 
 function renderChips() {
-  const options = [{ id: null, name: 'All', color: null }, ...state.data.routes];
+  const options = [{ id: null, shortName: 'All', name: 'All routes', color: null }, ...state.data.routes];
   chipsEl.replaceChildren(
     ...options.map((route) => {
       const chip = document.createElement('button');
       chip.type = 'button';
       chip.className = 'chip';
-      chip.textContent = route.name;
+      chip.textContent = route.shortName;
+      chip.title = route.name;
       chip.setAttribute('aria-pressed', String(route.id === state.routeId));
-      if (route.color) chip.style.setProperty('--route-color', route.color);
+      if (route.color) {
+        chip.style.setProperty('--route-color', route.color);
+        chip.style.setProperty('--route-text', readableTextColor(route.color));
+      }
       chip.addEventListener('click', () => selectRoute(route.id));
       return chip;
     }),
@@ -149,6 +155,7 @@ async function start() {
     renderChips();
     renderStops();
     renderMap();
+    setUpPlanView({ data: state.data, map, showAllRoutes: () => selectRoute(null) });
   } catch (error) {
     console.error(error);
     statusEl.textContent = 'Could not load bus data. Check your connection and reload.';
