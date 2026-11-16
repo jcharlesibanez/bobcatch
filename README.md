@@ -35,13 +35,18 @@ Bobcatch polls data on a server and serves it to clients, so individual users ne
 
 ## Getting started
 
-> Setup instructions will be added once the stack is finalized.
+The web app lives in `web/`. It needs [Node.js](https://nodejs.org) 20 or newer.
 
 ```bash
-git clone https://github.com/<your-username>/bobcatch.git
-cd bobcatch
-# install and run steps coming soon
+git clone https://github.com/jcharlesibanez/bobcatch.git
+cd bobcatch/web
+npm install
+npm run dev
 ```
+
+Then open the address it prints (usually http://localhost:5173). To see it on your phone, run `npm run dev -- --host` and open the "Network" address while on the same Wi-Fi.
+
+The server that polls bus data is not built yet, so the app currently shows **made-up sample data** from `web/public/sample/` and labels it as such.
 
 Never commit secrets. Put API keys and credentials in a `.env` file (already listed in `.gitignore`).
 

@@ -1,0 +1,10 @@
+{
+  "wsq": [ { "routeId": "A", "minutes": 3 }, { "routeId": "B", "minutes": 12 }, { "routeId": "A", "minutes": 19 } ],
+  "broadway": [ { "routeId": "A", "minutes": 5 }, { "routeId": "B", "minutes": 14 } ],
+  "third-north": [ { "routeId": "A", "minutes": 2 }, { "routeId": "C", "minutes": 9 } ],
+  "palladium": [ { "routeId": "C", "minutes": 6 }, { "routeId": "A", "minutes": 8 } ],
+  "gramercy": [ { "routeId": "A", "minutes": 4 } ],
+  "broome": [ { "routeId": "C", "minutes": 1 } ],
+  "lafayette": [ { "routeId": "C", "minutes": 7 }, { "routeId": "B", "minutes": 22 } ],
+  "metrotech": [ { "routeId": "B", "minutes": 11 } ]
+}

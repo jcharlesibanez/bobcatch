@@ -1,0 +1,10 @@
+[
+  { "id": "wsq", "name": "Washington Square East", "lat": 40.7291, "lon": -73.9965 },
+  { "id": "broadway", "name": "715 Broadway", "lat": 40.7295, "lon": -73.9936 },
+  { "id": "third-north", "name": "Third Avenue North", "lat": 40.7318, "lon": -73.9884 },
+  { "id": "palladium", "name": "Palladium (14th St)", "lat": 40.7334, "lon": -73.9882 },
+  { "id": "gramercy", "name": "Gramercy Green", "lat": 40.7386, "lon": -73.9829 },
+  { "id": "broome", "name": "Broome Street", "lat": 40.7206, "lon": -73.9971 },
+  { "id": "lafayette", "name": "Lafayette Hall", "lat": 40.7173, "lon": -74.0006 },
+  { "id": "metrotech", "name": "6 MetroTech (Tandon)", "lat": 40.6943, "lon": -73.9865 }
+]

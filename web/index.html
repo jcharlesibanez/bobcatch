@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="description" content="Unofficial live NYU bus tracker, built by students." />
+    <meta name="theme-color" content="#0f766e" />
+    <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <title>Bobcatch</title>
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <h1 class="brand">Bobcatch</h1>
+        <span class="badge" id="data-badge" hidden>Sample data, not live</span>
+      </header>
+
+      <main class="map" id="map" aria-label="Map of buses and stops"></main>
+
+      <aside class="panel" id="panel" aria-label="Routes and stops">
+        <button class="panel-handle" id="panel-handle" type="button" aria-expanded="true" aria-controls="panel-body">
+          <span class="panel-handle-bar" aria-hidden="true"></span>
+          <span class="visually-hidden">Show or hide the stop list</span>
+        </button>
+
+        <div class="chips" id="route-chips" role="group" aria-label="Filter by route"></div>
+
+        <div class="panel-body" id="panel-body">
+          <p class="status" id="status" role="status">Loading…</p>
+          <ul class="stops" id="stop-list"></ul>
+          <p class="disclaimer">
+            Unofficial student project. Not affiliated with, endorsed by, or operated by
+            New York University or Passio Technologies. Times may be delayed or wrong.
+          </p>
+        </div>
+      </aside>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

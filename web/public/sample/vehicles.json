@@ -1,0 +1,6 @@
+[
+  { "id": "bus-1", "routeId": "A", "lat": 40.7306, "lon": -73.9911 },
+  { "id": "bus-2", "routeId": "A", "lat": 40.7361, "lon": -73.9855 },
+  { "id": "bus-3", "routeId": "B", "lat": 40.7068, "lon": -73.9902 },
+  { "id": "bus-4", "routeId": "C", "lat": 40.7262, "lon": -73.9928 }
+]

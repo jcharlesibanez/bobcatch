@@ -1,0 +1,5 @@
+[
+  { "id": "A", "name": "Route A", "color": "#0f766e", "stopIds": ["wsq", "broadway", "third-north", "palladium", "gramercy"] },
+  { "id": "B", "name": "Route B", "color": "#b45309", "stopIds": ["wsq", "broadway", "lafayette", "metrotech"] },
+  { "id": "C", "name": "Route C", "color": "#6d28d9", "stopIds": ["palladium", "third-north", "broome", "lafayette"] }
+]
