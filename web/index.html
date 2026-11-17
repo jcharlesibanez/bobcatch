@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="description" content="Unofficial live NYU bus tracker, built by students." />
-    <meta name="theme-color" content="#0f766e" />
+    <meta name="theme-color" content="#0b0f14" />
     <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />
     <title>Bobcatch</title>
@@ -13,10 +13,16 @@
     <div class="app">
       <header class="topbar">
         <h1 class="brand">Bobcatch</h1>
-        <span class="badge" id="data-badge" hidden>Demo: buses and times are not live</span>
+        <span class="badge" id="data-badge" hidden>Demo data</span>
       </header>
 
       <main class="map" id="map" aria-label="Map of buses and stops"></main>
+
+      <button class="locate" id="locate" type="button" aria-label="Show my location" title="Show my location">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <circle cx="12" cy="12" r="7" /><circle cx="12" cy="12" r="2" fill="currentColor" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+        </svg>
+      </button>
 
       <aside class="panel" id="panel" aria-label="Routes and stops">
         <button class="panel-handle" id="panel-handle" type="button" aria-expanded="true" aria-controls="panel-body">
@@ -49,13 +55,10 @@
               </label>
             </form>
             <ul class="trip-options" id="plan-results" aria-live="polite"></ul>
-            <p class="hint">Direct NYU buses and walking only. No transfers or subway yet. Times are estimates.</p>
+            <p class="hint">Direct buses and walking only. Times are estimates.</p>
           </section>
 
-          <p class="disclaimer">
-            Unofficial student project. Not affiliated with, endorsed by, or operated by
-            New York University or Passio Technologies. Times may be delayed or wrong.
-          </p>
+          <p class="disclaimer">Unofficial. Not affiliated with NYU or Passio.</p>
         </div>
       </aside>
     </div>

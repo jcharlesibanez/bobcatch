@@ -3,18 +3,37 @@
 
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import 'maplibre-gl/dist/maplibre-gl.css';
+import '@maplibre/maplibre-gl-leaflet';
 import { readableTextColor } from './colors.js';
 
 const NYC_CENTER = [40.7205, -73.9925];
+const HIDDEN_BASEMAP_LAYERS = ['boundary_state', 'water_name'];
+const STOP_FILL = '#e8edf2';
+const STOP_OUTLINE = '#0b0f14';
+const STOP_SELECTED_FILL = '#facc15';
 
 export function createMap(element, { onStopClick }) {
+  // No zoom buttons: pinch, scroll or double-tap zooms, and it keeps the map clean.
   const map = L.map(element, { zoomControl: false }).setView(NYC_CENTER, 13);
-  L.control.zoom({ position: 'topright' }).addTo(map);
 
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  // The background map is OpenFreeMap's dark style: free, no API key, built from
+  // OpenStreetMap data. It is a "vector" map, drawn in the browser by MapLibre,
+  // and it leaves out clutter like ferry and shipping lines.
+  const basemap = L.maplibreGL({
+    style: 'https://tiles.openfreemap.org/styles/dark',
+    attribution:
+      '<a href="https://openfreemap.org">OpenFreeMap</a> &copy; <a href="https://www.openmaptiles.org/">OpenMapTiles</a> Data from <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
   }).addTo(map);
+
+  // Hide the few parts of that style we do not need. The dashed state border
+  // down the Hudson and the names of bays and rivers only add noise here.
+  const maplibreMap = basemap.getMaplibreMap();
+  maplibreMap.on('load', () => {
+    for (const layerId of HIDDEN_BASEMAP_LAYERS) {
+      if (maplibreMap.getLayer(layerId)) maplibreMap.setLayoutProperty(layerId, 'visibility', 'none');
+    }
+  });
 
   // One layer group per kind of thing, so each can be redrawn on its own.
   const routeLayer = L.layerGroup().addTo(map);
@@ -39,17 +58,17 @@ export function createMap(element, { onStopClick }) {
 
     for (const route of routes) {
       // route.path is the road the bus actually drives: a list of lines, each a list of [lat, lon].
-      L.polyline(route.path, { color: route.color, weight: 5, opacity: 0.85 }).addTo(routeLayer);
+      L.polyline(route.path, { color: route.color, weight: 4, opacity: 0.9 }).addTo(routeLayer);
       route.stopIds.forEach((id) => visibleStopIds.add(id));
     }
 
     for (const stop of stops) {
       if (!visibleStopIds.has(stop.id)) continue;
       const marker = L.circleMarker([stop.lat, stop.lon], {
-        radius: 7,
-        color: '#1f2937',
+        radius: 5,
+        color: STOP_OUTLINE,
         weight: 2,
-        fillColor: '#ffffff',
+        fillColor: STOP_FILL,
         fillOpacity: 1,
       });
       marker.bindTooltip(stop.name);
@@ -84,7 +103,7 @@ export function createMap(element, { onStopClick }) {
     const chosen = [];
     for (const [id, marker] of stopMarkers) {
       const selected = stopIds.includes(id);
-      marker.setStyle({ radius: selected ? 10 : 7, fillColor: selected ? '#facc15' : '#ffffff' });
+      marker.setStyle({ radius: selected ? 9 : 5, fillColor: selected ? STOP_SELECTED_FILL : STOP_FILL });
       if (selected) {
         marker.bringToFront();
         chosen.push(marker.getLatLng());
@@ -97,5 +116,24 @@ export function createMap(element, { onStopClick }) {
     }
   }
 
-  return { render, highlightStops };
+  let userMarker = null;
+
+  /** Put the blue "you are here" dot at { lat, lon } and move the map there. */
+  function showUserLocation({ lat, lon }) {
+    if (!userMarker) {
+      const dot = document.createElement('span');
+      dot.className = 'user-dot';
+      userMarker = L.marker([lat, lon], {
+        icon: L.divIcon({ html: dot, className: '', iconSize: [16, 16] }),
+        title: 'Your location',
+        interactive: false,
+        zIndexOffset: 2000,
+      }).addTo(map);
+    } else {
+      userMarker.setLatLng([lat, lon]);
+    }
+    map.flyTo([lat, lon], Math.max(map.getZoom(), 15), { duration: 0.5 });
+  }
+
+  return { render, highlightStops, showUserLocation };
 }

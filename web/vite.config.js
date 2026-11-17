@@ -17,8 +17,8 @@ export default defineConfig({
         name: 'Bobcatch',
         short_name: 'Bobcatch',
         description: 'Unofficial live NYU bus tracker, built by students.',
-        theme_color: '#0f766e',
-        background_color: '#f7f7f5',
+        theme_color: '#0b0f14',
+        background_color: '#0b0f14',
         display: 'standalone',
         start_url: '/',
         icons: [

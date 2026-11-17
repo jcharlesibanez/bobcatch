@@ -3,6 +3,7 @@ import { loadTransitData, IS_SAMPLE_DATA } from './data.js';
 import { createMap } from './map.js';
 import { readableTextColor } from './colors.js';
 import { setUpPlanView } from './plan-view.js';
+import { distanceMeters } from './planner.js';
 
 const chipsEl = document.getElementById('route-chips');
 const listEl = document.getElementById('stop-list');
@@ -15,6 +16,7 @@ const state = {
   data: null, // { routes, stops, vehicles, arrivals }
   routeId: null, // null means "all routes"
   stopId: null, // the stop whose arrivals are expanded
+  userLocation: null, // { lat, lon } once the person taps the locate button
 };
 
 const map = createMap(document.getElementById('map'), { onStopClick: selectStop });
@@ -26,6 +28,32 @@ handleEl.addEventListener('click', () => setPanelCollapsed(!panelEl.classList.co
 function setPanelCollapsed(collapsed) {
   panelEl.classList.toggle('is-collapsed', collapsed);
   handleEl.setAttribute('aria-expanded', String(!collapsed));
+}
+
+// We only ask for location when the person taps the button, never on page load.
+// The position stays in the browser: it is not sent to any server.
+const locateEl = document.getElementById('locate');
+locateEl.addEventListener('click', () => {
+  if (!('geolocation' in navigator)) {
+    showNotice('This browser cannot share your location.');
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      state.userLocation = { lat: position.coords.latitude, lon: position.coords.longitude };
+      locateEl.classList.add('is-active');
+      showNotice('');
+      map.showUserLocation(state.userLocation);
+      if (state.data) renderStops(); // nearest stops move to the top
+    },
+    () => showNotice('Could not get your location. Check that location access is allowed for this site.'),
+    { enableHighAccuracy: true, timeout: 10_000 },
+  );
+});
+
+function showNotice(text) {
+  statusEl.textContent = text;
+  statusEl.hidden = text === '';
 }
 
 function visibleRoutes() {
@@ -88,9 +116,13 @@ function renderStops() {
   const routeIds = new Set(visibleRoutes().map((route) => route.id));
   const stopIds = new Set(visibleRoutes().flatMap((route) => route.stopIds));
 
-  const items = stops
-    .filter((stop) => stopIds.has(stop.id))
-    .map((stop) => {
+  const shown = stops.filter((stop) => stopIds.has(stop.id));
+  if (state.userLocation) {
+    const here = state.userLocation;
+    shown.sort((a, b) => distanceMeters(here, a) - distanceMeters(here, b));
+  }
+
+  const items = shown.map((stop) => {
       const upcoming = (arrivals[stop.id] ?? [])
         .filter((arrival) => routeIds.has(arrival.routeId))
         .sort((a, b) => a.minutes - b.minutes);
@@ -151,14 +183,14 @@ function formatMinutes(minutes) {
 async function start() {
   try {
     state.data = await loadTransitData();
-    statusEl.hidden = true;
+    showNotice('');
     renderChips();
     renderStops();
     renderMap();
     setUpPlanView({ data: state.data, map, showAllRoutes: () => selectRoute(null) });
   } catch (error) {
     console.error(error);
-    statusEl.textContent = 'Could not load bus data. Check your connection and reload.';
+    showNotice('Could not load bus data. Check your connection and reload.');
   }
 }
 

@@ -1,28 +1,13 @@
+/* Bobcatch is dark only: one palette to maintain, and it is easier on the eyes at night. */
 :root {
-  --bg: #f7f7f5;
-  --surface: #ffffff;
-  --text: #1f2937;
-  --muted: #6b7280;
-  --border: #e5e7eb;
-  --accent: #0f766e;
-  --accent-text: #ffffff;
-  --warn-bg: #fef3c7;
-  --warn-text: #92400e;
-  color-scheme: light dark;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #111827;
-    --surface: #1f2937;
-    --text: #f3f4f6;
-    --muted: #9ca3af;
-    --border: #374151;
-    --accent: #2dd4bf;
-    --accent-text: #042f2e;
-    --warn-bg: #78350f;
-    --warn-text: #fde68a;
-  }
+  --bg: #0b0f14;
+  --surface: #141a22;
+  --text: #e8edf2;
+  --muted: #8b97a5;
+  --border: #253040;
+  --accent: #2dd4bf;
+  --accent-text: #042f2e;
+  color-scheme: dark;
 }
 
 * {
@@ -62,6 +47,8 @@ button {
 .app {
   display: grid;
   height: 100dvh;
+  /* minmax(0, ...) stops wide content (like the row of route chips) from stretching the page. */
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr) auto;
   grid-template-areas:
     'topbar'
@@ -76,8 +63,7 @@ button {
   gap: 12px;
   padding: 10px 16px;
   padding-top: max(10px, env(safe-area-inset-top));
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  background: var(--bg);
 }
 
 .brand {
@@ -92,9 +78,9 @@ button {
   margin-left: auto;
   padding: 2px 10px;
   border-radius: 999px;
-  background: var(--warn-bg);
-  color: var(--warn-text);
-  font-size: 0.8rem;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.75rem;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -104,6 +90,30 @@ button {
   min-height: 0;
   /* Keeps Leaflet's own layers underneath the panel. */
   z-index: 0;
+  background: var(--bg);
+}
+
+/* "Show my location" button, floating over the map's top right corner. */
+.locate {
+  grid-area: map;
+  align-self: start;
+  justify-self: end;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin: 12px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.locate.is-active {
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 .panel {
@@ -117,7 +127,7 @@ button {
   border-radius: 16px 16px 0 0;
   margin-top: -16px;
   z-index: 1;
-  box-shadow: 0 -4px 16px rgb(0 0 0 / 0.08);
+  box-shadow: 0 -4px 16px rgb(0 0 0 / 0.4);
   padding-bottom: env(safe-area-inset-bottom);
 }
 
@@ -207,7 +217,7 @@ button {
 .tab[aria-selected='true'] {
   background: var(--surface);
   color: var(--text);
-  box-shadow: 0 1px 3px rgb(0 0 0 / 0.15);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.4);
 }
 
 /* ---------- Trip planner ---------- */
@@ -435,10 +445,48 @@ button {
   place-items: center;
   width: 28px;
   height: 28px;
-  border: 2px solid #ffffff;
+  border: 2px solid var(--bg);
   border-radius: 8px;
   color: #ffffff;
   font-size: 0.85rem;
   font-weight: 700;
   box-shadow: 0 1px 4px rgb(0 0 0 / 0.4);
+}
+
+/* The blue "you are here" dot. */
+.user-dot {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border: 3px solid #ffffff;
+  border-radius: 50%;
+  background: #3b82f6;
+  box-shadow: 0 0 0 6px rgb(59 130 246 / 0.25);
+}
+
+/* Leaflet's own bits, restyled for the dark theme. */
+.leaflet-container {
+  background: var(--bg);
+  font: inherit;
+}
+
+.leaflet-container .leaflet-control-attribution {
+  background: rgb(11 15 20 / 0.7);
+  color: var(--muted);
+  font-size: 0.65rem;
+}
+
+.leaflet-container .leaflet-control-attribution a {
+  color: var(--muted);
+}
+
+.leaflet-tooltip {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: none;
+}
+
+.leaflet-tooltip::before {
+  display: none;
 }
