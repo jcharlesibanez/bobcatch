@@ -28,6 +28,16 @@ For these core areas: explain the approach and trade-offs, point me to the relev
 
 **Rule: never commit code I can't explain.** If you write something non-trivial, walk me through it before committing.
 
+### Learning log (`review.md`)
+
+Every merge gets a section in `review.md`, added on the same branch before the merge. Follow the structure described at the top of that file and add a row to its index.
+
+- Cover what I need to learn from the change: concepts, which code to read and in what order, questions for me, decisions only I can make, and exercises for me to build.
+- Ask questions that test understanding (explain why, predict, what if), not recall. Prioritize the teach-don't-write areas above.
+- Include a walkthrough only for non-trivial code you wrote in a teach-don't-write area.
+- Keep it an organized document, not a code dump: point to files and function names, not line numbers, which drift.
+- Don't answer the questions in the file. Tick a question only after we've discussed it, and keep the merge's status in the index current.
+
 ## Data sources
 
 - **NYU buses:** Passio GO. Prototyping uses the unofficial `passiogo` Python package, which may break without warning. The goal is an official GTFS-Realtime feed from NYU.
