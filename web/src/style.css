@@ -194,32 +194,11 @@ button {
   }
 }
 
-/* The header's locate button sits on the map, so it needs its own card background. */
-.locate {
-  border: 1px solid var(--border);
-  background: var(--card);
-}
+/* ---------- Bottom: cards above the From/To bar ----------
+   Phone: full width, compact, so most of the screen stays map.
+   Desktop: centered, with From and To side by side, as in the mock-up. */
 
-.badge[hidden] + .locate {
-  margin-left: auto;
-}
-
-.locate.is-active {
-  border-color: var(--border-strong);
-  color: var(--lime);
-}
-
-/* Shared look for every floating card. */
-.panel,
-.field-card {
-  border: 1px solid var(--border);
-  border-radius: 22px;
-  background: var(--card);
-  box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.5);
-  backdrop-filter: blur(24px);
-}
-
-.panel {
+.bottom {
   position: absolute;
   z-index: 3;
   left: 12px;
@@ -227,109 +206,65 @@ button {
   bottom: max(12px, env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
-  max-height: 52dvh;
+  gap: 8px;
+  /* Let map drags pass through the gaps between cards. */
+  pointer-events: none;
 }
 
-.panel-handle {
-  display: block;
-  width: 100%;
-  padding: 10px 0 8px;
-  border: 0;
-  background: none;
+.bottom > * {
+  pointer-events: auto;
 }
 
-.panel-handle-bar {
-  display: block;
-  width: 40px;
-  height: 4px;
-  margin: 0 auto;
-  border-radius: 2px;
-  background: var(--border-strong);
+/* Shared look for every floating card. */
+.sheet,
+.field-card,
+.toast {
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  background: var(--card);
+  box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.5);
+  backdrop-filter: blur(24px);
 }
 
-.panel.is-collapsed .panel-body {
+.sheet {
+  margin: 0;
+  padding: 14px;
+  max-height: 38dvh;
+  overflow-y: auto;
+}
+
+.toast {
+  align-self: center;
+  margin: 0;
+  padding: 8px 14px;
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.toast[hidden],
+.sheet[hidden] {
   display: none;
 }
 
-.panel-body {
-  overflow-y: auto;
-  min-height: 0;
-  padding: 0 16px 16px;
+/* A stop's card replaces the trip results while it is open. */
+.bottom:has(.stop-card:not([hidden])) .results {
+  display: none;
 }
 
-@media (min-width: 900px) {
-  :root {
-    --gap: 28px;
-  }
-
-  .panel {
-    top: 100px;
-    left: var(--gap);
-    right: auto;
-    bottom: var(--gap);
-    width: 380px;
-    max-height: none;
-    padding-top: 16px;
-  }
-
-  /* The sidebar is always open on desktop. */
-  .panel-handle {
-    display: none;
-  }
-
-  .panel.is-collapsed .panel-body {
-    display: block;
-  }
-
-  .chips {
-    flex-wrap: wrap;
-  }
-}
-
-/* ---------- Tabs ---------- */
-
-.tabs {
-  display: flex;
-  gap: 4px;
-  margin: 0 16px 14px;
-  padding: 4px;
-  border-radius: 18px;
-  background: rgb(255 255 255 / 0.04);
-}
-
-.tab {
-  flex: 1;
-  min-height: 40px;
-  border: 0;
-  border-radius: 14px;
-  background: none;
-  color: var(--muted);
-  font-weight: 600;
-  transition: background-color 0.15s, color 0.15s;
-}
-
-.tab[aria-selected='true'] {
-  background: var(--violet);
-  color: #ffffff;
-  font-weight: 700;
-  box-shadow: 0 10px 15px -3px rgb(46 16 101 / 0.4);
-}
-
-/* ---------- Trip planner ---------- */
-
-.plan-form {
+.plan-bar {
   display: grid;
-  gap: 10px;
+  gap: 8px;
+  margin: 0;
 }
 
 .field-card {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   min-width: 0;
-  padding: 10px 10px 10px 16px;
-  background: rgb(255 255 255 / 0.03);
-  box-shadow: none;
+  padding: 6px 6px 6px 16px;
+  border-radius: 18px;
   transition: border-color 0.15s;
 }
 
@@ -337,15 +272,23 @@ button {
   border-color: var(--border-strong);
 }
 
+/* On a phone the label sits beside the stop name to keep each field one line tall. */
 .field {
   flex: 1;
   min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.field .eyebrow {
+  flex: none;
+  width: 46px;
 }
 
 .field select {
-  display: block;
-  width: 100%;
-  margin-top: 2px;
+  flex: 1;
+  min-width: 0;
   padding: 0;
   border: 0;
   outline: none;
@@ -365,11 +308,67 @@ button {
   color: var(--text);
 }
 
-.trip-options {
+.field-card .icon-button {
+  width: 38px;
+  height: 38px;
+  border-radius: 13px;
+}
+
+@media (min-width: 900px) {
+  :root {
+    --gap: 28px;
+  }
+
+  .bottom {
+    left: 50%;
+    right: auto;
+    bottom: 32px;
+    width: min(768px, calc(100% - 2 * var(--gap)));
+    transform: translateX(-50%);
+    gap: 12px;
+  }
+
+  .sheet {
+    max-height: 45dvh;
+  }
+
+  .plan-bar {
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  /* Desktop matches the mock-up: label above the stop name, bigger targets. */
+  .field-card {
+    padding: 10px 10px 10px 16px;
+    border-radius: 22px;
+  }
+
+  .field {
+    display: block;
+  }
+
+  .field .eyebrow {
+    width: auto;
+  }
+
+  .field select {
+    display: block;
+    width: 100%;
+    margin-top: 2px;
+  }
+
+  .field-card .icon-button {
+    width: 44px;
+    height: 44px;
+    border-radius: 16px;
+  }
+}
+
+/* ---------- Trip results ---------- */
+
+.results {
   display: grid;
   gap: 8px;
-  margin: 16px 0 0;
-  padding: 0;
   list-style: none;
 }
 
@@ -378,9 +377,9 @@ button {
   grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 2px 12px;
   align-items: center;
-  padding: 12px;
+  padding: 10px 12px;
   border: 1px solid var(--divider);
-  border-radius: 18px;
+  border-radius: 16px;
   background: rgb(255 255 255 / 0.03);
 }
 
@@ -393,9 +392,9 @@ button {
   grid-row: 1 / span 2;
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
-  border-radius: 12px;
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
   background: rgb(255 255 255 / 0.06);
   font-weight: 700;
 }
@@ -429,113 +428,111 @@ button {
 }
 
 .hint {
-  margin: 12px 0 0;
+  padding: 0 4px;
   color: var(--faint);
   font-size: 0.8125rem;
 }
 
-/* ---------- Route filter chips ---------- */
+/* ---------- Stop card ---------- */
 
-.chips {
+.stop-card-header {
   display: flex;
-  gap: 8px;
-  padding: 0 0 12px;
-  overflow-x: auto;
-  scrollbar-width: none;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
 }
 
-.chip {
-  --route-color: var(--violet);
-  --route-text: #ffffff;
+.stop-card-title {
+  margin: 2px 0 0 4px;
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+.close-button {
   flex: none;
-  min-width: 44px;
-  min-height: 36px;
-  padding: 6px 14px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: transparent;
-  white-space: nowrap;
-}
-
-.chip[aria-pressed='true'] {
-  border-color: var(--route-color);
-  background: var(--route-color);
-  color: var(--route-text);
-  font-weight: 700;
-}
-
-/* ---------- Stop list ---------- */
-
-.status {
-  margin: 8px 0;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 10px;
+  background: rgb(255 255 255 / 0.06);
   color: var(--muted);
+  font-size: 1.25rem;
+  line-height: 1;
 }
 
-.stops,
-.arrivals {
+.stop-card .eyebrow {
+  margin: 0 4px 4px;
+}
+
+.route-times {
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.stops > li {
+.route-time {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 4px;
   border-bottom: 1px solid var(--divider);
 }
 
-.stop {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  width: 100%;
-  min-height: 52px;
-  padding: 10px 0;
-  border: 0;
-  background: none;
-  text-align: left;
+.route-badge {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  font-size: 0.85rem;
+  font-weight: 700;
 }
 
-.stop-name {
-  font-weight: 500;
+.route-name {
+  flex: 1;
+  min-width: 0;
+  color: var(--muted);
 }
 
-.stop-next {
+.route-next {
   flex: none;
   color: var(--lime);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
-.arrivals {
-  padding: 0 0 12px;
-}
-
-.arrivals > li {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 0;
-  color: var(--muted);
-}
-
-.arrival-time {
-  margin-left: auto;
-  color: var(--text);
-  font-variant-numeric: tabular-nums;
-}
-
-.dot {
-  flex: none;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-}
-
-.disclaimer {
-  margin: 16px 0 0;
+.route-next.is-none {
   color: var(--faint);
-  font-size: 0.75rem;
+  font-weight: 500;
 }
+
+.stop-card-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.action-button {
+  min-height: 42px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--violet-soft);
+  color: var(--violet-text);
+  font-weight: 700;
+}
+
+.action-button.is-to {
+  background: var(--violet);
+  color: #ffffff;
+}
+
+.action-button:hover {
+  filter: brightness(1.15);
+}
+
 
 :focus-visible {
   outline: 2px solid var(--violet-hover);
@@ -584,7 +581,7 @@ button {
   }
 }
 
-.leaflet-container .leaflet-control-attribution {
+.map .leaflet-control-attribution {
   margin-right: var(--gap);
   border-radius: 8px;
   background: rgb(9 8 13 / 0.7);
@@ -592,11 +589,11 @@ button {
   font-size: 0.625rem;
 }
 
-.leaflet-container .leaflet-control-attribution a {
+.map .leaflet-control-attribution a {
   color: var(--muted);
 }
 
-.leaflet-tooltip {
+.map .leaflet-tooltip {
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--card-solid);
@@ -604,6 +601,6 @@ button {
   box-shadow: none;
 }
 
-.leaflet-tooltip::before {
+.map .leaflet-tooltip::before {
   display: none;
 }

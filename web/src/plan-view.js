@@ -1,12 +1,16 @@
-// The "Plan a trip" tab: the From/To form and the list of options.
+// The From/To bar along the bottom and the trip results card above it.
 // The actual decision-making lives in planner.js; this file only shows it.
 
 import { planTrip, distanceMeters } from './planner.js';
 import { readableTextColor } from './colors.js';
 
-export function setUpPlanView({ data, map, showAllRoutes, locateUser }) {
-  const tabs = { stops: document.getElementById('tab-stops'), plan: document.getElementById('tab-plan') };
-  const views = { stops: document.getElementById('view-stops'), plan: document.getElementById('view-plan') };
+/**
+ * @param data  { routes, stops, arrivals }
+ * @param locateUser  returns a promise of the person's { lat, lon }
+ * @param onChange  called with the chosen stop ids whenever From or To changes
+ * @returns {{ setStop(role: 'from' | 'to', stopId: string): void }}
+ */
+export function setUpPlanView({ data, locateUser, onChange }) {
   const fromEl = document.getElementById('plan-from');
   const toEl = document.getElementById('plan-to');
   const resultsEl = document.getElementById('plan-results');
@@ -18,40 +22,33 @@ export function setUpPlanView({ data, map, showAllRoutes, locateUser }) {
     for (const stop of sortedStops) select.append(new Option(stop.name, stop.id));
   }
 
-  function showTab(name) {
-    for (const key of Object.keys(tabs)) {
-      tabs[key].setAttribute('aria-selected', String(key === name));
-      views[key].hidden = key !== name;
-    }
-    if (name === 'plan') {
-      showAllRoutes(); // a trip can use any route, so undo any route filter
-      update();
-    } else {
-      map.highlightStops([]);
-    }
-  }
-
   function update() {
     const fromId = fromEl.value;
     const toId = toEl.value;
-    map.highlightStops([fromId, toId].filter(Boolean));
 
     if (!fromId || !toId) {
-      resultsEl.replaceChildren();
-      return;
+      showResults([]);
+    } else if (fromId === toId) {
+      showResults([message('Pick two different stops.')]);
+    } else {
+      const options = planTrip(fromId, toId, data);
+      showResults([
+        ...options.map((option, index) => optionCard(option, index === 0)),
+        message('Direct buses and walking only. Times are estimates.'),
+      ]);
     }
-    if (fromId === toId) {
-      resultsEl.replaceChildren(message('Pick two different stops.'));
-      return;
-    }
-    const options = planTrip(fromId, toId, data);
-    resultsEl.replaceChildren(...options.map((option, index) => optionCard(option, index === 0)));
+    // Report last, once the results card is showing, so the map can steer clear of it.
+    onChange([fromId, toId].filter(Boolean));
   }
 
-  tabs.stops.addEventListener('click', () => showTab('stops'));
-  tabs.plan.addEventListener('click', () => showTab('plan'));
+  function showResults(items) {
+    resultsEl.replaceChildren(...items);
+    resultsEl.hidden = items.length === 0;
+  }
+
   fromEl.addEventListener('change', update);
   toEl.addEventListener('change', update);
+
   // "Locate" in the From field: start from whichever stop is closest to the person.
   document.getElementById('plan-locate').addEventListener('click', async () => {
     try {
@@ -59,13 +56,21 @@ export function setUpPlanView({ data, map, showAllRoutes, locateUser }) {
       fromEl.value = nearestStop(here, data.stops).id;
       update();
     } catch {
-      resultsEl.replaceChildren(message('Could not get your location. Choose a stop instead.'));
+      showResults([message('Could not get your location. Check that location access is allowed, or choose a stop.')]);
     }
   });
+
   document.getElementById('plan-swap').addEventListener('click', () => {
     [fromEl.value, toEl.value] = [toEl.value, fromEl.value];
     update();
   });
+
+  return {
+    setStop(role, stopId) {
+      (role === 'from' ? fromEl : toEl).value = stopId;
+      update();
+    },
+  };
 }
 
 /** The stop closest to { lat, lon }, as the crow flies. */

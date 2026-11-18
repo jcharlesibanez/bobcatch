@@ -28,7 +28,7 @@ Each merge section has the same parts: Summary, Concepts to learn, Code to read,
 - **Data:** real NYU stops and routes saved once from Passio GO; bus positions and arrival times are invented. The app labels it "Demo data".
 - **Trip planner:** compares walking with riding a single bus route. Written by Claude at your request, so it has a walkthrough below.
 - **Dark theme:** dark-only colors, a dark vector map with clutter removed, each route drawn in its own color, and a button that shows your location.
-- **Figma restyle:** full-screen map with floating cards, violet controls, lime highlights, self-hosted DM Sans font. The From field can start from the stop nearest you.
+- **Figma restyle:** full-screen map, From/To bar along the bottom, violet controls, lime highlights, self-hosted DM Sans. No stop list: tapping a stop opens a card with its next buses. The From field can start from the stop nearest you.
 
 ### Concepts to learn
 
@@ -43,10 +43,10 @@ Each merge section has the same parts: Summary, Concepts to learn, Code to read,
 | Raster vs vector map tiles | Why the map download went from about 150 KB to 1.2 MB | `map.js` (basemap) |
 | Web workers | Why MapLibre v6 failed to load and v5 didn't | `package.json` (MapLibre pinned to v5) |
 | Geolocation, permissions and secure contexts | Why location only works on HTTPS or `localhost` | `main.js` (locate button) |
-| CSS grid sizing | Why the phone layout was wider than the screen | `style.css` (`.app`, `minmax(0, 1fr)`) |
+| CSS grid sizing | Why a layout can end up wider than the screen | `style.css` (`.trip-option`, `minmax(0, 1fr)`) |
 | Great-circle distance (haversine) | Distance between two latitude/longitude points | `planner.js` (`distanceMeters`) |
 | Graphs and shortest paths (Dijkstra) | What the planner needs to support transfers | Exercise below |
-| Overlays and map padding | Keeping zoomed-to stops out from under the floating panel | `main.js` (`coveredMapArea`), `map.js` (`showPoints`) |
+| Overlays and map padding | Keeping zoomed-to stops out from under the bottom cards | `main.js` (`coveredMapArea`), `map.js` (`showPoints`) |
 
 ### Code to read
 
@@ -56,11 +56,11 @@ Read in this order. The planner is required reading: it's routing logic, which `
 |---|---|---|
 | 1 | `web/src/planner.js` | All of it, with the walkthrough below |
 | 2 | `web/src/data.js` | `loadTransitData` and the data shapes in its comment |
-| 3 | `web/src/main.js` | The `state` object; `selectRoute`, `selectStop`; the locate button handler |
+| 3 | `web/src/main.js` | The `state` object; `openStop`, `closeStop`, `highlight`; `locateUser`; `coveredMapArea` |
 | 4 | `web/src/map.js` | `createMap`: the basemap, the three layer groups, `render`, `highlightStops`, `showUserLocation` |
-| 5 | `web/src/plan-view.js` | `setUpPlanView` and `update`: how the form calls `planTrip` and shows results |
+| 5 | `web/src/plan-view.js` and `web/src/stop-card.js` | How the From/To bar calls `planTrip`; how the stop card groups arrivals by route |
 | 6 | `web/src/colors.js` | `readableTextColor` |
-| 7 | `web/src/style.css` | The Layout section: phone first, then the `min-width: 900px` desktop rules |
+| 7 | `web/src/style.css` | The Layout and Bottom sections: phone first, then the `min-width: 900px` desktop rules |
 
 Not in the repo: the script that converted Passio's response into `web/public/sample/`. It's close to server work, so you may want to write your own version when you build the server.
 
@@ -111,7 +111,7 @@ As a check, one degree of latitude comes out as 111.2 km.
 
 - [ ] 3. `data.js` is the only file that knows the data comes from sample files. When you connect your server, which files should change and which shouldn't? Why is that worth designing for?
 - [ ] 4. `loadTransitData` uses `Promise.all` for four files. How would loading time change with four `await`s in a row, and what happens to `Promise.all` if one of the four fails?
-- [ ] 5. `main.js` redraws the chips, list and map from one `state` object whenever anything changes. What problem does that avoid compared with editing individual elements, and what does it cost?
+- [ ] 5. Both the From/To bar and the stop card decide which stops are highlighted, but only `highlight()` in `main.js` touches the map. What bug would appear if each highlighted stops on its own?
 - [ ] 6. `map.js` keeps routes, stops and buses in separate layer groups, and uses a `ResizeObserver`. What would go wrong without each?
 
 **Trip planner**
@@ -129,7 +129,7 @@ As a check, one degree of latitude comes out as 111.2 km.
 
 **Figma restyle**
 
-- [ ] 16. `coveredMapArea` decides "sidebar or bottom card" from the screen width, not from where the panel is. The first version used the panel's position and crashed the map on phones. Why would position be the wrong signal?
+- [ ] 16. `coveredMapArea` measures the bottom cards every time the map moves instead of once at start-up. Why?
 - [ ] 17. The font is installed from npm (`@fontsource/dm-sans`) instead of loaded from Google Fonts. Name two reasons that suits a PWA.
 
 **Before you build the server**
