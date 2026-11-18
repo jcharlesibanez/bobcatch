@@ -4,15 +4,15 @@
 import { readableTextColor } from './colors.js';
 
 /**
- * @param element  the empty card element to fill
  * @param data  { routes, stops, arrivals }
  * @param onClose  called when the close button is pressed
  * @param onPick  called with ('from' | 'to', stopId) from the two buttons
  */
-export function createStopCard({ element, data, onClose, onPick }) {
+export function createStopCard({ data, onClose, onPick }) {
   const stopsById = new Map(data.stops.map((stop) => [stop.id, stop]));
 
-  function show(stopId) {
+  /** Fill `element` with the card for one stop. */
+  function render(stopId, element) {
     const stop = stopsById.get(stopId);
     const servingRoutes = data.routes.filter((route) => route.stopIds.includes(stopId));
     const arrivals = data.arrivals[stopId] ?? [];
@@ -54,14 +54,9 @@ export function createStopCard({ element, data, onClose, onPick }) {
 
     // Buttons go above the times so they stay visible when the list is long.
     element.replaceChildren(header, actions, el('p', 'eyebrow', 'Next buses'), rows);
-    element.hidden = false;
   }
 
-  function hide() {
-    element.hidden = true;
-  }
-
-  return { show, hide };
+  return { render };
 }
 
 function el(tag, className, text = '') {

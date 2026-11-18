@@ -26,7 +26,7 @@ const STOP_SELECTED_FILL = '#d9ff57';
  *   the map the floating header and panel cover, so we never zoom to a spot hidden
  *   underneath them
  */
-export function createMap(element, { onStopClick, getPadding }) {
+export function createMap(element, { onStopClick, onPopupClose, getPadding }) {
   // No zoom buttons: pinch, scroll or double-tap zooms, and it keeps the map clean.
   const map = L.map(element, { zoomControl: false, attributionControl: false }).setView(NYC_CENTER, 13);
   L.control.attribution({ position: 'topright', prefix: false }).addTo(map);
@@ -160,5 +160,25 @@ export function createMap(element, { onStopClick, getPadding }) {
     showPoints([[lat, lon]], 16);
   }
 
-  return { render, highlightStops, showUserLocation };
+  const popup = L.popup({
+    className: 'stop-popup',
+    closeButton: false,
+    maxWidth: 320,
+    minWidth: 280,
+    autoPanPaddingTopLeft: [24, 100],
+    autoPanPaddingBottomRight: [24, 140],
+  });
+  map.on('popupclose', () => onPopupClose());
+
+  /** Show `content` in a card that points at the given stop. */
+  function openStopPopup(stopId, content) {
+    const marker = stopMarkers.get(stopId);
+    if (marker) popup.setLatLng(marker.getLatLng()).setContent(content).openOn(map);
+  }
+
+  function closeStopPopup() {
+    map.closePopup(popup);
+  }
+
+  return { render, highlightStops, showUserLocation, openStopPopup, closeStopPopup };
 }

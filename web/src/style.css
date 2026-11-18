@@ -608,3 +608,48 @@ button {
 .map .leaflet-tooltip::before {
   display: none;
 }
+
+/* ---------- Stop card as a map popup (desktop) ---------- */
+
+.map .stop-popup .leaflet-popup-content-wrapper {
+  padding: 0;
+  border-radius: 22px;
+  background: transparent;
+  box-shadow: none;
+}
+
+.map .stop-popup .leaflet-popup-content {
+  width: 300px !important; /* Leaflet sets an inline width; keep the card a fixed size. */
+  margin: 0;
+  font: inherit;
+  line-height: 1.4;
+}
+
+.map .stop-popup .leaflet-popup-tip {
+  border: 1px solid var(--border);
+  background: var(--card-solid);
+  box-shadow: none;
+}
+
+.popup-card {
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  background: var(--card);
+  color: var(--text);
+  box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.5);
+  backdrop-filter: blur(24px);
+}
+
+/* In the popup each row is just the route icon on the left and its times on the right. */
+.popup-card .route-name {
+  display: none;
+}
+
+.popup-card .route-next {
+  margin-left: auto;
+}
+
+.popup-card .route-time:last-child {
+  border-bottom: 0;
+}

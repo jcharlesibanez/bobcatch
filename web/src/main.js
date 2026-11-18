@@ -20,7 +20,14 @@ const state = {
   cardStopId: null, // the stop whose arrivals card is open
 };
 
-const map = createMap(document.getElementById('map'), { onStopClick: openStop, getPadding: coveredMapArea });
+const map = createMap(document.getElementById('map'), {
+  onStopClick: openStop,
+  onPopupClose: closeStop,
+  getPadding: coveredMapArea,
+});
+const stopSheetEl = document.getElementById('stop-card');
+// Must match the desktop breakpoint in style.css.
+const isDesktop = () => window.matchMedia('(min-width: 900px)').matches;
 let plan = null; // set up once the data has loaded
 let stopCard = null;
 
@@ -41,15 +48,27 @@ function coveredMapArea() {
   };
 }
 
+// Desktop: the stop's card opens on the map, next to the stop.
+// Phone: it opens in the bottom sheet, above From/To, where there is room.
 function openStop(stopId) {
   state.cardStopId = stopId;
-  stopCard.show(stopId);
-  highlight();
+  if (isDesktop()) {
+    const content = document.createElement('div');
+    content.className = 'stop-card popup-card';
+    stopCard.render(stopId, content);
+    map.openStopPopup(stopId, content);
+  } else {
+    stopCard.render(stopId, stopSheetEl);
+    stopSheetEl.hidden = false;
+    highlight();
+  }
 }
 
 function closeStop() {
+  if (!state.cardStopId) return; // already closed (closing the popup calls this again)
   state.cardStopId = null;
-  stopCard.hide();
+  stopSheetEl.hidden = true;
+  map.closeStopPopup();
   highlight();
 }
 
@@ -100,7 +119,6 @@ async function start() {
     state.data = await loadTransitData();
     showNotice('');
     stopCard = createStopCard({
-      element: document.getElementById('stop-card'),
       data: state.data,
       onClose: closeStop,
       onPick: (role, stopId) => {
