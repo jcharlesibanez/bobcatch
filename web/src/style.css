@@ -545,16 +545,18 @@ button {
 
 /* ---------- Map markers ---------- */
 
-.bus-marker {
+.bus-dot {
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
+  box-sizing: border-box;
+  width: 18px;
+  height: 18px;
   border: 2px solid var(--bg);
-  border-radius: 9px;
-  font-size: 0.85rem;
+  border-radius: 50%;
+  font-size: 0.6rem;
   font-weight: 700;
-  box-shadow: 0 2px 6px rgb(0 0 0 / 0.5);
+  line-height: 1;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.6);
 }
 
 /* "You are here": a dark dot with a lime ring, like the start marker in the mock-up. */
