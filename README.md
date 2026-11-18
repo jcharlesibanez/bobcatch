@@ -44,7 +44,7 @@ npm install
 npm run dev
 ```
 
-Then open the address it prints (usually http://localhost:5173). To see it on your phone, run `npm run dev -- --host` and open the "Network" address while on the same Wi-Fi.
+Then open the address it prints (usually http://localhost:5173). Run the web app's tests with `npm test`. To see it on your phone, run `npm run dev -- --host` and open the "Network" address while on the same Wi-Fi.
 
 On its own, the app shows **made-up sample data** from `web/public/sample/` and labels it "Demo data". For live buses, also run the server (Python 3.11 or newer) in a second terminal; see [`server/README.md`](server/README.md):
 

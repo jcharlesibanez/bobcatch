@@ -16,7 +16,7 @@ Each merge section has the same parts: Summary, Concepts to learn, Code to read,
 | # | Merge | Branch / PR | Status |
 |---|---|---|---|
 | 1 | Project setup, web app, trip planner, dark map, Figma restyle | `claude/new-session-fxobs6`, merged to `main` | Open: 0 of 17 questions |
-| 2 | Server: live NYU bus data from Passio | `claude/intelligent-dirac-1me7i2` | Open: 0 of 12 questions |
+| 2 | Server: live NYU bus data from Passio; side-by-side route lines and animated bus dots | `claude/intelligent-dirac-1me7i2` | Open: 0 of 18 questions |
 
 ---
 
@@ -154,7 +154,7 @@ As a check, one degree of latitude comes out as 111.2 km.
 
 ---
 
-## Merge 2: Server: live NYU bus data from Passio
+## Merge 2: Server: live NYU bus data from Passio; side-by-side route lines and animated bus dots
 
 ### Summary
 
@@ -162,6 +162,10 @@ As a check, one degree of latitude comes out as 111.2 km.
 - **Real arrival times:** Passio's own predictions, fetched for every campus stop in one request. `passiogo` has no arrivals, so the server makes Passio's requests directly with `httpx` instead of using the package.
 - **Web app:** `data.js` asks the server first and falls back to the demo files if it can't reach it. Buses and arrival times refresh every 10 s while the page is visible, without moving the map. A notice appears when data is over 90 s old.
 - **Tests:** `pytest` for the converter and the poller, using hand-made and saved Passio responses. No test touches the network.
+- **Side-by-side route lines:** where routes share a street, each gets its own lane a fixed number of pixels apart, so every line stays visible at every zoom.
+- **Bus dots:** buses are dots stuck to their own route's lane. On each update they glide *along the road* to the new position. Dots that would overlap slide aside smoothly, across the street, and back once clear.
+- **Web tests:** `npm test` in `web/` runs Node's built-in test runner on the geometry (no new dependency).
+- The server now also sends each bus's `heading`.
 - This is core-area code (polling, caching), all written by Claude: read it closely.
 
 ### Concepts to learn
@@ -179,6 +183,14 @@ As a check, one degree of latitude comes out as 111.2 km.
 | Pure functions and test fixtures | Testing without the network | `convert.py`, `tests/`, `SavedPassio` |
 | Data minimization | Passio sends driver names; we never pass them on | `convert_etas` docstring |
 | Graceful fallback | The deployed site has no server yet and still works | `loadTransitData` in `data.js` |
+| Local flat coordinates (meters) | Geometry on lat/lon is distorted; meters make distances and angles simple | `geo.js` (`localProjection`) |
+| Spatial grid index | Finding nearby lines without comparing every point with every other | `route-lanes.js` (`buildGrid`, `nearbySegments`) |
+| Offsets in screen pixels vs. meters | Lanes stay 5 px apart at any zoom, so they need recomputing on every zoom | `OffsetPolyline` in `map.js` |
+| Map matching (snapping GPS to a line) | GPS is noisy; a dot should sit on its route, on the right side of a two-way street | `placeOnRoute` in `bus-motion.js` |
+| Collision resolution by relaxation | Pushing pairs apart repeatedly until nothing overlaps | `separateDots`, `pushApart` |
+| Continuity vs. smoothing | Easing the output lags behind fast dots; keeping every input continuous doesn't | `bus-layer.js` header comment, `sidewaysGap` |
+| Hysteresis (remembering a decision) | Stops two dots swapping sides every frame when one passes over the other | `sides` in `separateDots` |
+| `requestAnimationFrame` loops | Animating only while something moves, so an idle map costs no battery | `drawFrame`, `frame` in `bus-layer.js` |
 
 ### Code to read
 
@@ -191,6 +203,13 @@ As a check, one degree of latitude comes out as 111.2 km.
 | 5 | `server/tests/` | What each test pins down, and what isn't tested |
 | 6 | `web/src/data.js` | `loadTransitData`, `loadLiveData`, `toMinutesFromNow` |
 | 7 | `web/src/main.js` | `refreshLiveData`, `showFreshness`, `startLiveUpdates` |
+| 8 | `web/src/route-lanes.js` | The four steps in the header comment, then `findSharedStretches`, `laneUnits`, `smoothAlong` |
+| 9 | `web/src/map.js` | `OffsetPolyline`: the only place lanes touch Leaflet |
+| 10 | `web/src/bus-motion.js` | `placeOnRoute`, `makeGlide`, then `separateDots` and `sidewaysGap` |
+| 11 | `web/src/bus-layer.js` | The header comment, `update`, `frame` |
+| 12 | `web/src/*.test.js` | Each test's name says what it protects; find the one that failed during development (see below) |
+
+Development notes worth reading before the code: the first version eased each dot's nudge over time, and dots still overlapped while one bus passed another. The fix wasn't a faster ease but removing every jump from the inputs (`sidewaysGap`, fading `weight`, remembered `sides`). The tests "keeps to one side" and "never makes them overlap" pin those bugs down.
 
 ### Questions
 
@@ -215,15 +234,27 @@ As a check, one degree of latitude comes out as 111.2 km.
 - [ ] 11. The deployed site has no server, so `data.js` falls back to demo data. When could falling back silently be harmful, rather than helpful?
 - [ ] 12. Merge 1's questions 14 and 15 asked how you'd handle a Passio outage and polling rates. Compare your answers with what was built. What would you change?
 
+**Route lanes and bus dots**
+
+- [ ] 13. Lanes are spaced in pixels, not meters. What would the map look like zoomed out if they were spaced 5 m apart instead? Why does that force `OffsetPolyline` to redo its offsets on every zoom?
+- [ ] 14. Two routes on the same two-way street go opposite directions. Walk through `laneUnits` for both and explain why they land on opposite sides, not on top of each other.
+- [ ] 15. Without the grid in `buildGrid`, how would the work in `findSharedStretches` grow with the number of points? Answer in big-O, and estimate it for about 6,000 points.
+- [ ] 16. `placeOnRoute` uses the bus's heading. Describe a real place on an NYU route where snapping by distance alone would put the dot on the wrong side, and what the student would see.
+- [ ] 17. Why does a dot glide along the route instead of moving in a straight line from old position to new? When does `makeGlide` give up and use a straight line, and why?
+- [ ] 18. `separateDots` pushes buses on the same street sideways, never forwards or backwards. Why does that matter for someone deciding whether to run for a bus?
+
 ### Decisions
 
 - [ ] Where to host the server (it must run all the time, so not Vercel serverless functions as they are; options include Fly.io, Render, Railway, or a small VM).
 - [ ] Polling rates: 10 s live, 6 h static, pause after 5 min idle. Too fast or slow?
 - [ ] Contact NYU Transportation / Passio about Bobcatch and an official GTFS-Realtime feed before launch, since we rely on undocumented endpoints.
 - [ ] Should the stop card show how old the arrival times are all the time, not only when over 90 s?
+- [ ] Bus dots glide for 2 s after each update. Alternative: glide over the whole 10 s interval so buses always look like they're moving, at the cost of showing them about 10 s late. Which do students want?
+- [ ] At low zoom, the Broadway bundle is 7 lanes (35 px) wide. Keep it, or merge lanes into one line below some zoom level?
 
 ### Exercises
 
 1. **Watch it work.** Run the server during the day, open `/api/health`, then the app. Stop your Wi-Fi for two minutes and watch the server log and the app's notice. Explain each log line.
 2. **Write a missing test.** There's no test that the live feed pauses when idle and wakes on `client_asked`. Write one (hint: shorten `IDLE_AFTER` in the test).
-3. **Refresh the samples.** Save new responses in `server/samples/` while buses are running, so `BOBCATCH_SOURCE=saved` shows real campus buses. Check them for personal data first.
+3. **Tune the lanes.** Change `SAME_STREET_METERS`, `MIN_RUN_METERS` and `TAPER_METERS` in `route-lanes.js` one at a time and look at Broadway and First Avenue. Predict what each will do first.
+4. **Refresh the samples.** Save new responses in `server/samples/` while buses are running, so `BOBCATCH_SOURCE=saved` shows real campus buses. Check them for personal data first.
