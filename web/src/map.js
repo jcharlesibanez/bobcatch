@@ -68,6 +68,7 @@ export function createMap(element, { onStopClick, onPopupClose, getPadding }) {
   const stopLayer = L.layerGroup().addTo(map);
   const vehicleLayer = L.layerGroup().addTo(map);
   const stopMarkers = new Map();
+  let routesById = new Map();
 
   // The map's box changes size when the phone rotates or the panel collapses.
   // Leaflet has to be told, or it leaves grey gaps.
@@ -77,11 +78,10 @@ export function createMap(element, { onStopClick, onPopupClose, getPadding }) {
   function render({ routes, stops, vehicles }) {
     routeLayer.clearLayers();
     stopLayer.clearLayers();
-    vehicleLayer.clearLayers();
     stopMarkers.clear();
 
     const stopsById = new Map(stops.map((stop) => [stop.id, stop]));
-    const routesById = new Map(routes.map((route) => [route.id, route]));
+    routesById = new Map(routes.map((route) => [route.id, route]));
     const visibleStopIds = new Set();
 
     for (const route of routes) {
@@ -105,6 +105,21 @@ export function createMap(element, { onStopClick, onPopupClose, getPadding }) {
       stopMarkers.set(stop.id, marker);
     }
 
+    renderVehicles(vehicles);
+
+    if (visibleStopIds.size > 0) {
+      const { topLeft, bottomRight } = getPadding();
+      const bounds = L.latLngBounds([...stopMarkers.values()].map((m) => m.getLatLng()));
+      map.fitBounds(bounds, { paddingTopLeft: topLeft, paddingBottomRight: bottomRight });
+    }
+  }
+
+  /**
+   * Redraw just the buses. Called every few seconds with fresh positions, so it
+   * leaves the routes, stops and the map's view alone.
+   */
+  function renderVehicles(vehicles) {
+    vehicleLayer.clearLayers();
     for (const vehicle of vehicles) {
       const route = routesById.get(vehicle.routeId);
       if (!route) continue;
@@ -118,12 +133,6 @@ export function createMap(element, { onStopClick, onPopupClose, getPadding }) {
         title: `${route.name} bus`,
         zIndexOffset: 1000,
       }).addTo(vehicleLayer);
-    }
-
-    if (visibleStopIds.size > 0) {
-      const { topLeft, bottomRight } = getPadding();
-      const bounds = L.latLngBounds([...stopMarkers.values()].map((m) => m.getLatLng()));
-      map.fitBounds(bounds, { paddingTopLeft: topLeft, paddingBottomRight: bottomRight });
     }
   }
 
@@ -180,5 +189,5 @@ export function createMap(element, { onStopClick, onPopupClose, getPadding }) {
     map.closePopup(popup);
   }
 
-  return { render, highlightStops, showUserLocation, openStopPopup, closeStopPopup };
+  return { render, renderVehicles, highlightStops, showUserLocation, openStopPopup, closeStopPopup };
 }

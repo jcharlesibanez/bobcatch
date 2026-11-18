@@ -8,7 +8,7 @@ import { readableTextColor } from './colors.js';
  * @param data  { routes, stops, arrivals }
  * @param locateUser  returns a promise of the person's { lat, lon }
  * @param onChange  called with the chosen stop ids whenever From or To changes
- * @returns {{ setStop(role: 'from' | 'to', stopId: string): void }}
+ * @returns {{ setStop(role: 'from' | 'to', stopId: string): void, refresh(): void }}
  */
 export function setUpPlanView({ data, locateUser, onChange }) {
   const fromEl = document.getElementById('plan-from');
@@ -22,7 +22,8 @@ export function setUpPlanView({ data, locateUser, onChange }) {
     for (const stop of sortedStops) select.append(new Option(stop.name, stop.id));
   }
 
-  function update() {
+  /** Work out and show the options for the chosen stops, from the latest data. */
+  function renderResults() {
     const fromId = fromEl.value;
     const toId = toEl.value;
 
@@ -37,8 +38,12 @@ export function setUpPlanView({ data, locateUser, onChange }) {
         message('Direct buses and walking only. Times are estimates.'),
       ]);
     }
+  }
+
+  function update() {
+    renderResults();
     // Report last, once the results card is showing, so the map can steer clear of it.
-    onChange([fromId, toId].filter(Boolean));
+    onChange([fromEl.value, toEl.value].filter(Boolean));
   }
 
   function showResults(items) {
@@ -70,6 +75,8 @@ export function setUpPlanView({ data, locateUser, onChange }) {
       (role === 'from' ? fromEl : toEl).value = stopId;
       update();
     },
+    // New arrival times came in: redo the results, but don't move the map.
+    refresh: renderResults,
   };
 }
 
