@@ -1,12 +1,24 @@
-/* Bobcatch is dark only: one palette to maintain, and it is easier on the eyes at night. */
+/* Visual design based on the Bobcatch Figma mock-up: a full-screen dark map with
+   floating cards on top, violet for controls and lime for the brand and highlights. */
 :root {
-  --bg: #0b0f14;
-  --surface: #141a22;
-  --text: #e8edf2;
-  --muted: #8b97a5;
-  --border: #253040;
-  --accent: #2dd4bf;
-  --accent-text: #042f2e;
+  --bg: #111716;
+  --card: rgb(9 8 13 / 0.95);
+  --card-solid: #09080d;
+  --text: #ffffff;
+  --muted: rgb(255 255 255 / 0.55);
+  --faint: rgb(255 255 255 / 0.35);
+  --divider: rgb(255 255 255 / 0.07);
+  --border: rgb(167 139 250 / 0.2);
+  --border-strong: rgb(167 139 250 / 0.6);
+  --violet: #8b5cf6;
+  --violet-hover: #a78bfa;
+  --violet-soft: rgb(139 92 246 / 0.15);
+  --violet-softer: rgb(139 92 246 / 0.3);
+  --violet-text: #c4b5fd;
+  --violet-label: rgb(196 181 253 / 0.6);
+  --lime: #d9ff57;
+  --lime-text: #111713;
+  --gap: 20px;
   color-scheme: dark;
 }
 
@@ -21,14 +33,20 @@ body {
 }
 
 body {
+  min-width: 320px;
   background: var(--bg);
   color: var(--text);
-  font: 16px/1.4 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font: 16px/1.4 'DM Sans', system-ui, sans-serif;
+}
+
+button,
+select {
+  font: inherit;
+  color: inherit;
 }
 
 button {
-  font: inherit;
-  color: inherit;
+  cursor: pointer;
 }
 
 .visually-hidden {
@@ -40,104 +58,184 @@ button {
   white-space: nowrap;
 }
 
-/* ---------- Layout ----------
-   Phone (default): header, map, then the panel as a sheet at the bottom.
-   Desktop (900px and up): the panel becomes a sidebar on the left. */
-
-.app {
-  display: grid;
-  height: 100dvh;
-  /* minmax(0, ...) stops wide content (like the row of route chips) from stretching the page. */
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  grid-template-areas:
-    'topbar'
-    'map'
-    'panel';
+/* Small uppercase label used above titles and in the From/To fields. */
+.eyebrow {
+  display: block;
+  margin: 0;
+  color: var(--violet-label);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
 }
 
-.topbar {
-  grid-area: topbar;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 16px;
-  padding-top: max(10px, env(safe-area-inset-top));
+/* ---------- Layout ----------
+   The map fills the whole screen. The header and the panel float on top of it.
+   Phone (default): the panel is a card along the bottom.
+   Desktop (900px and up): the panel is a card down the left side. */
+
+.app {
+  position: relative;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.map {
+  position: absolute;
+  inset: 0;
+  /* Keeps Leaflet's own layers underneath the floating cards. */
+  z-index: 0;
   background: var(--bg);
 }
 
+.map-shade {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    rgb(5 8 7 / 0.55),
+    transparent 22%,
+    transparent 55%,
+    rgb(5 8 7 / 0.7)
+  );
+}
+
+.topbar {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: var(--gap);
+  padding-top: max(var(--gap), env(safe-area-inset-top));
+  /* Let map drags pass through the empty parts of the header. */
+  pointer-events: none;
+}
+
+.topbar > * {
+  pointer-events: auto;
+}
+
 .brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--lime);
+  color: var(--lime-text);
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.2);
+}
+
+.brand .eyebrow {
+  white-space: nowrap;
+  color: var(--faint);
+  letter-spacing: 0.22em;
+}
+
+.brand-name {
   margin: 0;
-  font-size: 1.25rem;
-  font-weight: 700;
+  font-size: 1.125rem;
+  font-weight: 600;
   letter-spacing: -0.01em;
-  color: var(--accent);
 }
 
 .badge {
   margin-left: auto;
-  padding: 2px 10px;
-  border-radius: 999px;
+  padding: 3px 10px;
   border: 1px solid var(--border);
-  color: var(--muted);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--violet-text);
   font-size: 0.75rem;
   font-weight: 600;
   white-space: nowrap;
 }
 
-.map {
-  grid-area: map;
-  min-height: 0;
-  /* Keeps Leaflet's own layers underneath the panel. */
-  z-index: 0;
-  background: var(--bg);
-}
-
-/* "Show my location" button, floating over the map's top right corner. */
-.locate {
-  grid-area: map;
-  align-self: start;
-  justify-self: end;
-  z-index: 1;
+/* Square violet button used for "locate" and "swap". */
+.icon-button {
+  flex: none;
   display: grid;
   place-items: center;
   width: 44px;
   height: 44px;
-  margin: 12px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--violet-soft);
+  color: var(--violet-text);
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.icon-button:hover {
+  background: var(--violet-softer);
+  color: #ede9fe;
+}
+
+.icon-button:disabled {
+  cursor: wait;
+}
+
+.icon-button.is-loading svg {
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.4;
+  }
+}
+
+/* The header's locate button sits on the map, so it needs its own card background. */
+.locate {
   border: 1px solid var(--border);
-  border-radius: 50%;
-  background: var(--surface);
-  color: var(--text);
-  cursor: pointer;
+  background: var(--card);
+}
+
+.badge[hidden] + .locate {
+  margin-left: auto;
 }
 
 .locate.is-active {
-  color: var(--accent);
-  border-color: var(--accent);
+  border-color: var(--border-strong);
+  color: var(--lime);
+}
+
+/* Shared look for every floating card. */
+.panel,
+.field-card {
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  background: var(--card);
+  box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.5);
+  backdrop-filter: blur(24px);
 }
 
 .panel {
-  grid-area: panel;
+  position: absolute;
+  z-index: 3;
+  left: 12px;
+  right: 12px;
+  bottom: max(12px, env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
-  min-height: 0;
-  max-height: 48dvh;
-  background: var(--surface);
-  border-top: 1px solid var(--border);
-  border-radius: 16px 16px 0 0;
-  margin-top: -16px;
-  z-index: 1;
-  box-shadow: 0 -4px 16px rgb(0 0 0 / 0.4);
-  padding-bottom: env(safe-area-inset-bottom);
+  max-height: 52dvh;
 }
 
 .panel-handle {
   display: block;
   width: 100%;
-  padding: 10px 0 6px;
+  padding: 10px 0 8px;
   border: 0;
   background: none;
-  cursor: pointer;
 }
 
 .panel-handle-bar {
@@ -146,7 +244,7 @@ button {
   height: 4px;
   margin: 0 auto;
   border-radius: 2px;
-  background: var(--border);
+  background: var(--border-strong);
 }
 
 .panel.is-collapsed .panel-body {
@@ -160,22 +258,18 @@ button {
 }
 
 @media (min-width: 900px) {
-  .app {
-    grid-template-columns: 360px minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr);
-    grid-template-areas:
-      'topbar topbar'
-      'panel  map';
+  :root {
+    --gap: 28px;
   }
 
   .panel {
+    top: 100px;
+    left: var(--gap);
+    right: auto;
+    bottom: var(--gap);
+    width: 380px;
     max-height: none;
-    margin-top: 0;
-    border-top: 0;
-    border-right: 1px solid var(--border);
-    border-radius: 0;
-    box-shadow: none;
-    padding-top: 12px;
+    padding-top: 16px;
   }
 
   /* The sidebar is always open on desktop. */
@@ -197,76 +291,86 @@ button {
 .tabs {
   display: flex;
   gap: 4px;
-  margin: 0 16px 12px;
+  margin: 0 16px 14px;
   padding: 4px;
-  border-radius: 12px;
-  background: var(--bg);
+  border-radius: 18px;
+  background: rgb(255 255 255 / 0.04);
 }
 
 .tab {
   flex: 1;
   min-height: 40px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 14px;
   background: none;
   color: var(--muted);
   font-weight: 600;
-  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
 }
 
 .tab[aria-selected='true'] {
-  background: var(--surface);
-  color: var(--text);
-  box-shadow: 0 1px 3px rgb(0 0 0 / 0.4);
+  background: var(--violet);
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 10px 15px -3px rgb(46 16 101 / 0.4);
 }
 
 /* ---------- Trip planner ---------- */
 
 .plan-form {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px 12px;
+  gap: 10px;
+}
+
+.field-card {
+  display: flex;
   align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 10px 10px 10px 16px;
+  background: rgb(255 255 255 / 0.03);
+  box-shadow: none;
+  transition: border-color 0.15s;
+}
+
+.field-card:focus-within {
+  border-color: var(--border-strong);
 }
 
 .field {
-  grid-column: 1;
-  display: grid;
-  gap: 4px;
-  color: var(--muted);
-  font-size: 0.85rem;
-  font-weight: 600;
+  flex: 1;
+  min-width: 0;
 }
 
 .field select {
+  display: block;
   width: 100%;
-  min-height: 44px;
-  padding: 8px 10px;
-  border: 1.5px solid var(--border);
-  border-radius: 10px;
-  background: var(--surface);
-  color: var(--text);
-  font: inherit;
+  margin-top: 2px;
+  padding: 0;
+  border: 0;
+  outline: none;
+  appearance: none;
+  background: transparent;
+  font-size: 0.9375rem;
+  text-overflow: ellipsis;
 }
 
-.swap {
-  grid-column: 2;
-  grid-row: 1 / span 2;
-  width: 44px;
-  height: 44px;
-  border: 1.5px solid var(--border);
-  border-radius: 50%;
-  background: var(--surface);
-  font-size: 1.2rem;
-  cursor: pointer;
+/* The empty "Choose a stop" choice looks like a placeholder. */
+.field select:invalid {
+  color: var(--faint);
+}
+
+.field option {
+  background: var(--card-solid);
+  color: var(--text);
 }
 
 .trip-options {
-  list-style: none;
-  margin: 16px 0 0;
-  padding: 0;
   display: grid;
   gap: 8px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
 }
 
 .trip-option {
@@ -275,22 +379,24 @@ button {
   gap: 2px 12px;
   align-items: center;
   padding: 12px;
-  border: 1.5px solid var(--border);
-  border-radius: 12px;
+  border: 1px solid var(--divider);
+  border-radius: 18px;
+  background: rgb(255 255 255 / 0.03);
 }
 
 .trip-option.is-fastest {
-  border-color: var(--accent);
+  border-color: var(--border-strong);
+  background: var(--violet-soft);
 }
 
 .trip-icon {
   grid-row: 1 / span 2;
   display: grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: var(--bg);
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: rgb(255 255 255 / 0.06);
   font-weight: 700;
 }
 
@@ -301,13 +407,13 @@ button {
 .trip-detail {
   grid-column: 2;
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: 0.875rem;
 }
 
 .trip-total {
   grid-row: 1 / span 2;
   grid-column: 3;
-  font-size: 1.1rem;
+  font-size: 1.125rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   text-align: right;
@@ -315,17 +421,17 @@ button {
 
 .trip-tag {
   display: block;
-  color: var(--accent);
-  font-size: 0.75rem;
+  color: var(--lime);
+  font-size: 0.625rem;
   font-weight: 700;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 
 .hint {
   margin: 12px 0 0;
-  color: var(--muted);
-  font-size: 0.85rem;
+  color: var(--faint);
+  font-size: 0.8125rem;
 }
 
 /* ---------- Route filter chips ---------- */
@@ -333,22 +439,21 @@ button {
 .chips {
   display: flex;
   gap: 8px;
-  padding: 4px 0 12px;
+  padding: 0 0 12px;
   overflow-x: auto;
   scrollbar-width: none;
 }
 
 .chip {
-  --route-color: var(--accent);
-  --route-text: var(--accent-text);
+  --route-color: var(--violet);
+  --route-text: #ffffff;
   flex: none;
   min-width: 44px;
   min-height: 36px;
   padding: 6px 14px;
-  border: 1.5px solid var(--border);
+  border: 1px solid var(--border);
   border-radius: 999px;
-  background: var(--surface);
-  cursor: pointer;
+  background: transparent;
   white-space: nowrap;
 }
 
@@ -356,7 +461,7 @@ button {
   border-color: var(--route-color);
   background: var(--route-color);
   color: var(--route-text);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 /* ---------- Stop list ---------- */
@@ -368,13 +473,13 @@ button {
 
 .stops,
 .arrivals {
-  list-style: none;
   margin: 0;
   padding: 0;
+  list-style: none;
 }
 
 .stops > li {
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--divider);
 }
 
 .stop {
@@ -388,16 +493,15 @@ button {
   border: 0;
   background: none;
   text-align: left;
-  cursor: pointer;
 }
 
 .stop-name {
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .stop-next {
   flex: none;
-  color: var(--accent);
+  color: var(--lime);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
@@ -429,12 +533,12 @@ button {
 
 .disclaimer {
   margin: 16px 0 0;
-  color: var(--muted);
-  font-size: 0.8rem;
+  color: var(--faint);
+  font-size: 0.75rem;
 }
 
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--violet-hover);
   outline-offset: 2px;
 }
 
@@ -446,34 +550,46 @@ button {
   width: 28px;
   height: 28px;
   border: 2px solid var(--bg);
-  border-radius: 8px;
-  color: #ffffff;
+  border-radius: 9px;
   font-size: 0.85rem;
   font-weight: 700;
-  box-shadow: 0 1px 4px rgb(0 0 0 / 0.4);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.5);
 }
 
-/* The blue "you are here" dot. */
+/* "You are here": a dark dot with a lime ring, like the start marker in the mock-up. */
 .user-dot {
   display: block;
-  width: 16px;
-  height: 16px;
-  border: 3px solid #ffffff;
+  width: 20px;
+  height: 20px;
+  border: 4px solid var(--lime);
   border-radius: 50%;
-  background: #3b82f6;
-  box-shadow: 0 0 0 6px rgb(59 130 246 / 0.25);
+  background: var(--bg);
+  box-shadow: 0 0 0 6px rgb(217 255 87 / 0.2);
 }
 
-/* Leaflet's own bits, restyled for the dark theme. */
+/* Leaflet's own bits, restyled to match. */
 .leaflet-container {
   background: var(--bg);
   font: inherit;
 }
 
+/* Map controls (just the attribution) go under the header, clear of the panel. */
+.map .leaflet-top {
+  top: 80px;
+}
+
+@media (min-width: 900px) {
+  .map .leaflet-top {
+    top: 96px;
+  }
+}
+
 .leaflet-container .leaflet-control-attribution {
-  background: rgb(11 15 20 / 0.7);
-  color: var(--muted);
-  font-size: 0.65rem;
+  margin-right: var(--gap);
+  border-radius: 8px;
+  background: rgb(9 8 13 / 0.7);
+  color: var(--faint);
+  font-size: 0.625rem;
 }
 
 .leaflet-container .leaflet-control-attribution a {
@@ -482,7 +598,8 @@ button {
 
 .leaflet-tooltip {
   border: 1px solid var(--border);
-  background: var(--surface);
+  border-radius: 10px;
+  background: var(--card-solid);
   color: var(--text);
   box-shadow: none;
 }

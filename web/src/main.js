@@ -1,3 +1,7 @@
+import '@fontsource/dm-sans/400.css';
+import '@fontsource/dm-sans/500.css';
+import '@fontsource/dm-sans/600.css';
+import '@fontsource/dm-sans/700.css';
 import './style.css';
 import { loadTransitData, IS_SAMPLE_DATA } from './data.js';
 import { createMap } from './map.js';
@@ -19,7 +23,22 @@ const state = {
   userLocation: null, // { lat, lon } once the person taps the locate button
 };
 
-const map = createMap(document.getElementById('map'), { onStopClick: selectStop });
+const map = createMap(document.getElementById('map'), { onStopClick: selectStop, getPadding: coveredMapArea });
+
+/**
+ * How much of the map the floating header and panel hide, in pixels from each edge.
+ * On a phone the panel covers the bottom; on desktop it covers the left side.
+ */
+function coveredMapArea() {
+  const margin = 24;
+  const header = document.querySelector('.topbar').getBoundingClientRect();
+  const panel = panelEl.getBoundingClientRect();
+  // Must match the breakpoint in style.css where the panel becomes a sidebar.
+  const panelIsSidebar = window.matchMedia('(min-width: 900px)').matches;
+  return panelIsSidebar
+    ? { topLeft: [panel.right + margin, header.bottom], bottomRight: [margin, margin] }
+    : { topLeft: [margin, header.bottom], bottomRight: [margin, window.innerHeight - panel.top + margin] };
+}
 
 document.getElementById('data-badge').hidden = !IS_SAMPLE_DATA;
 
@@ -33,23 +52,47 @@ function setPanelCollapsed(collapsed) {
 // We only ask for location when the person taps the button, never on page load.
 // The position stays in the browser: it is not sent to any server.
 const locateEl = document.getElementById('locate');
-locateEl.addEventListener('click', () => {
-  if (!('geolocation' in navigator)) {
-    showNotice('This browser cannot share your location.');
-    return;
+locateEl.addEventListener('click', () => locateUser().catch(() => {})); // locateUser shows its own error
+
+/**
+ * Ask the browser where the person is, then show it on the map and sort the
+ * stop list nearest first. Returns a promise of { lat, lon }.
+ */
+function locateUser() {
+  return new Promise((resolve, reject) => {
+    if (!('geolocation' in navigator)) {
+      showNotice('This browser cannot share your location.');
+      reject(new Error('Geolocation not supported'));
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setLocating(false);
+        state.userLocation = { lat: position.coords.latitude, lon: position.coords.longitude };
+        locateEl.classList.add('is-active');
+        showNotice('');
+        map.showUserLocation(state.userLocation);
+        if (state.data) renderStops(); // nearest stops move to the top
+        resolve(state.userLocation);
+      },
+      (error) => {
+        setLocating(false);
+        showNotice('Could not get your location. Check that location access is allowed for this site.');
+        reject(error);
+      },
+      { enableHighAccuracy: true, timeout: 10_000 },
+    );
+  });
+}
+
+/** Pulse the locate buttons and stop double taps while the browser is looking. */
+function setLocating(isLocating) {
+  for (const button of document.querySelectorAll('#locate, #plan-locate')) {
+    button.disabled = isLocating;
+    button.classList.toggle('is-loading', isLocating);
   }
-  navigator.geolocation.getCurrentPosition(
-    (position) => {
-      state.userLocation = { lat: position.coords.latitude, lon: position.coords.longitude };
-      locateEl.classList.add('is-active');
-      showNotice('');
-      map.showUserLocation(state.userLocation);
-      if (state.data) renderStops(); // nearest stops move to the top
-    },
-    () => showNotice('Could not get your location. Check that location access is allowed for this site.'),
-    { enableHighAccuracy: true, timeout: 10_000 },
-  );
-});
+}
 
 function showNotice(text) {
   statusEl.textContent = text;
@@ -187,7 +230,7 @@ async function start() {
     renderChips();
     renderStops();
     renderMap();
-    setUpPlanView({ data: state.data, map, showAllRoutes: () => selectRoute(null) });
+    setUpPlanView({ data: state.data, map, showAllRoutes: () => selectRoute(null), locateUser });
   } catch (error) {
     console.error(error);
     showNotice('Could not load bus data. Check your connection and reload.');

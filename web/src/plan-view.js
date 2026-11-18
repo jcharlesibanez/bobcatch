@@ -1,10 +1,10 @@
 // The "Plan a trip" tab: the From/To form and the list of options.
 // The actual decision-making lives in planner.js; this file only shows it.
 
-import { planTrip } from './planner.js';
+import { planTrip, distanceMeters } from './planner.js';
 import { readableTextColor } from './colors.js';
 
-export function setUpPlanView({ data, map, showAllRoutes }) {
+export function setUpPlanView({ data, map, showAllRoutes, locateUser }) {
   const tabs = { stops: document.getElementById('tab-stops'), plan: document.getElementById('tab-plan') };
   const views = { stops: document.getElementById('view-stops'), plan: document.getElementById('view-plan') };
   const fromEl = document.getElementById('plan-from');
@@ -52,10 +52,29 @@ export function setUpPlanView({ data, map, showAllRoutes }) {
   tabs.plan.addEventListener('click', () => showTab('plan'));
   fromEl.addEventListener('change', update);
   toEl.addEventListener('change', update);
+  // "Locate" in the From field: start from whichever stop is closest to the person.
+  document.getElementById('plan-locate').addEventListener('click', async () => {
+    try {
+      const here = await locateUser();
+      fromEl.value = nearestStop(here, data.stops).id;
+      update();
+    } catch {
+      resultsEl.replaceChildren(message('Could not get your location. Choose a stop instead.'));
+    }
+  });
   document.getElementById('plan-swap').addEventListener('click', () => {
     [fromEl.value, toEl.value] = [toEl.value, fromEl.value];
     update();
   });
+}
+
+/** The stop closest to { lat, lon }, as the crow flies. */
+function nearestStop(here, stops) {
+  let best = stops[0];
+  for (const stop of stops) {
+    if (distanceMeters(here, stop) < distanceMeters(here, best)) best = stop;
+  }
+  return best;
 }
 
 function message(text) {

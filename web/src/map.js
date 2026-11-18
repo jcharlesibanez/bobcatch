@@ -9,13 +9,38 @@ import { readableTextColor } from './colors.js';
 
 const NYC_CENTER = [40.7205, -73.9925];
 const HIDDEN_BASEMAP_LAYERS = ['boundary_state', 'water_name'];
-const STOP_FILL = '#e8edf2';
-const STOP_OUTLINE = '#0b0f14';
-const STOP_SELECTED_FILL = '#facc15';
+// Recolor parts of the basemap to the mock-up's green-tinted dark palette.
+const BASEMAP_COLORS = [
+  ['background', 'background-color', '#111716'],
+  ['water', 'fill-color', '#0c2527'],
+  ['landuse_park', 'fill-color', '#16201d'],
+];
+const STOP_FILL = '#ffffff';
+const STOP_OUTLINE = '#111716';
+const STOP_SELECTED_FILL = '#d9ff57';
 
-export function createMap(element, { onStopClick }) {
+/**
+ * @param element  where to draw the map
+ * @param onStopClick  called with a stop id when a stop is tapped
+ * @param getPadding  returns { topLeft: [x, y], bottomRight: [x, y] }: how much of
+ *   the map the floating header and panel cover, so we never zoom to a spot hidden
+ *   underneath them
+ */
+export function createMap(element, { onStopClick, getPadding }) {
   // No zoom buttons: pinch, scroll or double-tap zooms, and it keeps the map clean.
-  const map = L.map(element, { zoomControl: false }).setView(NYC_CENTER, 13);
+  const map = L.map(element, { zoomControl: false, attributionControl: false }).setView(NYC_CENTER, 13);
+  L.control.attribution({ position: 'topright', prefix: false }).addTo(map);
+
+  /** Move the map so all the given points show in the uncovered part of it. */
+  function showPoints(points, maxZoom) {
+    const { topLeft, bottomRight } = getPadding();
+    map.flyToBounds(L.latLngBounds(points), {
+      paddingTopLeft: topLeft,
+      paddingBottomRight: bottomRight,
+      maxZoom,
+      duration: 0.5,
+    });
+  }
 
   // The background map is OpenFreeMap's dark style: free, no API key, built from
   // OpenStreetMap data. It is a "vector" map, drawn in the browser by MapLibre,
@@ -32,6 +57,9 @@ export function createMap(element, { onStopClick }) {
   maplibreMap.on('load', () => {
     for (const layerId of HIDDEN_BASEMAP_LAYERS) {
       if (maplibreMap.getLayer(layerId)) maplibreMap.setLayoutProperty(layerId, 'visibility', 'none');
+    }
+    for (const [layerId, property, color] of BASEMAP_COLORS) {
+      if (maplibreMap.getLayer(layerId)) maplibreMap.setPaintProperty(layerId, property, color);
     }
   });
 
@@ -93,8 +121,9 @@ export function createMap(element, { onStopClick }) {
     }
 
     if (visibleStopIds.size > 0) {
+      const { topLeft, bottomRight } = getPadding();
       const bounds = L.latLngBounds([...stopMarkers.values()].map((m) => m.getLatLng()));
-      map.fitBounds(bounds, { padding: [32, 32] });
+      map.fitBounds(bounds, { paddingTopLeft: topLeft, paddingBottomRight: bottomRight });
     }
   }
 
@@ -109,22 +138,18 @@ export function createMap(element, { onStopClick }) {
         chosen.push(marker.getLatLng());
       }
     }
-    if (chosen.length === 1) {
-      map.flyTo(chosen[0], Math.max(map.getZoom(), 16), { duration: 0.5 });
-    } else if (chosen.length > 1) {
-      map.flyToBounds(L.latLngBounds(chosen), { padding: [48, 48], maxZoom: 16, duration: 0.5 });
-    }
+    if (chosen.length > 0) showPoints(chosen, 16);
   }
 
   let userMarker = null;
 
-  /** Put the blue "you are here" dot at { lat, lon } and move the map there. */
+  /** Put the "you are here" dot at { lat, lon } and move the map there. */
   function showUserLocation({ lat, lon }) {
     if (!userMarker) {
       const dot = document.createElement('span');
       dot.className = 'user-dot';
       userMarker = L.marker([lat, lon], {
-        icon: L.divIcon({ html: dot, className: '', iconSize: [16, 16] }),
+        icon: L.divIcon({ html: dot, className: '', iconSize: [20, 20] }),
         title: 'Your location',
         interactive: false,
         zIndexOffset: 2000,
@@ -132,7 +157,7 @@ export function createMap(element, { onStopClick }) {
     } else {
       userMarker.setLatLng([lat, lon]);
     }
-    map.flyTo([lat, lon], Math.max(map.getZoom(), 15), { duration: 0.5 });
+    showPoints([[lat, lon]], 16);
   }
 
   return { render, highlightStops, showUserLocation };

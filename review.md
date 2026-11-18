@@ -15,11 +15,11 @@ Each merge section has the same parts: Summary, Concepts to learn, Code to read,
 
 | # | Merge | Branch / PR | Status |
 |---|---|---|---|
-| 1 | Project setup, web app, trip planner, dark map | `claude/new-session-fxobs6` (not merged yet) | Open: 0 of 15 questions |
+| 1 | Project setup, web app, trip planner, dark map, Figma restyle | `claude/new-session-fxobs6` (not merged yet) | Open: 0 of 17 questions |
 
 ---
 
-## Merge 1: Project setup, web app, trip planner, dark map
+## Merge 1: Project setup, web app, trip planner, dark map, Figma restyle
 
 ### Summary
 
@@ -28,6 +28,7 @@ Each merge section has the same parts: Summary, Concepts to learn, Code to read,
 - **Data:** real NYU stops and routes saved once from Passio GO; bus positions and arrival times are invented. The app labels it "Demo data".
 - **Trip planner:** compares walking with riding a single bus route. Written by Claude at your request, so it has a walkthrough below.
 - **Dark theme:** dark-only colors, a dark vector map with clutter removed, each route drawn in its own color, and a button that shows your location.
+- **Figma restyle:** full-screen map with floating cards, violet controls, lime highlights, self-hosted DM Sans font. The From field can start from the stop nearest you.
 
 ### Concepts to learn
 
@@ -45,6 +46,7 @@ Each merge section has the same parts: Summary, Concepts to learn, Code to read,
 | CSS grid sizing | Why the phone layout was wider than the screen | `style.css` (`.app`, `minmax(0, 1fr)`) |
 | Great-circle distance (haversine) | Distance between two latitude/longitude points | `planner.js` (`distanceMeters`) |
 | Graphs and shortest paths (Dijkstra) | What the planner needs to support transfers | Exercise below |
+| Overlays and map padding | Keeping zoomed-to stops out from under the floating panel | `main.js` (`coveredMapArea`), `map.js` (`showPoints`) |
 
 ### Code to read
 
@@ -124,6 +126,11 @@ As a check, one degree of latitude comes out as 111.2 km.
 - [ ] 11. The basemap changed from raster PNG tiles to vector tiles drawn in the browser. Name one thing that got better and one that got worse.
 - [ ] 12. Why do browsers allow location only on HTTPS or `localhost`? And why does Bobcatch ask on tap instead of when the page loads?
 - [ ] 13. The phone layout was wider than the screen until the grid column changed from `1fr` to `minmax(0, 1fr)`. What does the `0` change? (Hint: look up a grid item's automatic minimum size.)
+
+**Figma restyle**
+
+- [ ] 16. `coveredMapArea` decides "sidebar or bottom card" from the screen width, not from where the panel is. The first version used the panel's position and crashed the map on phones. Why would position be the wrong signal?
+- [ ] 17. The font is installed from npm (`@fontsource/dm-sans`) instead of loaded from Google Fonts. Name two reasons that suits a PWA.
 
 **Before you build the server**
 
