@@ -5,3 +5,6 @@
 node_modules/
 dist/
 dev-dist/
+
+# graphify knowledge-graph output (local, regenerated on demand)
+graphify-out/
