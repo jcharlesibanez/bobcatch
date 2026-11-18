@@ -28,14 +28,14 @@ Getting around NYU currently means juggling several apps: one for NYU buses, ano
 
 | Source | What | Status |
 |---|---|---|
-| NYU buses (Passio GO) | Live vehicle positions, routes, stops | Prototyping with the unofficial [`passiogo`](https://pypi.org/project/PassioGo/) package; seeking an official GTFS-Realtime feed |
+| NYU buses (Passio GO) | Live vehicle positions, arrival estimates, routes, stops | Working, through Passio's unofficial endpoints (as used by the [`passiogo`](https://pypi.org/project/PassioGo/) package); seeking an official GTFS-Realtime feed |
 | MTA | Subway and bus schedules and realtime data (GTFS) | Planned |
 
 Bobcatch polls data on a server and serves it to clients, so individual users never hit upstream services directly. Please keep polling rates respectful.
 
 ## Getting started
 
-The web app lives in `web/`. It needs [Node.js](https://nodejs.org) 20 or newer.
+The web app lives in `web/` and the server in `server/`. The app needs [Node.js](https://nodejs.org) 20 or newer.
 
 ```bash
 git clone https://github.com/jcharlesibanez/bobcatch.git
@@ -46,7 +46,14 @@ npm run dev
 
 Then open the address it prints (usually http://localhost:5173). To see it on your phone, run `npm run dev -- --host` and open the "Network" address while on the same Wi-Fi.
 
-The server that polls bus data is not built yet, so the app currently shows **made-up sample data** from `web/public/sample/` and labels it as such.
+On its own, the app shows **made-up sample data** from `web/public/sample/` and labels it "Demo data". For live buses, also run the server (Python 3.11 or newer) in a second terminal; see [`server/README.md`](server/README.md):
+
+```bash
+cd bobcatch/server
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements-dev.txt
+uvicorn bobcatch.app:app --reload --port 8000
+```
 
 Never commit secrets. Put API keys and credentials in a `.env` file (already listed in `.gitignore`).
 

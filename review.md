@@ -16,6 +16,7 @@ Each merge section has the same parts: Summary, Concepts to learn, Code to read,
 | # | Merge | Branch / PR | Status |
 |---|---|---|---|
 | 1 | Project setup, web app, trip planner, dark map, Figma restyle | `claude/new-session-fxobs6`, merged to `main` | Open: 0 of 17 questions |
+| 2 | Server: live NYU bus data from Passio | `claude/intelligent-dirac-1me7i2` | Open: 0 of 12 questions |
 
 ---
 
@@ -150,3 +151,79 @@ As a check, one degree of latitude comes out as 111.2 km.
 1. **Your first server step.** Write a Python script that calls `passiogo` once for NYU (system id `1007`) and prints routes, stops and vehicles. Compare what you get with the shapes in `web/public/sample/` and decide what your server's JSON should look like.
 2. **Tests for the planner.** List five stop pairs and the answer you expect for each, before running anything. Then write them as tests. Include at least one loop route and one pair with no direct bus.
 3. **Transfers (larger).** Model stops as nodes in a graph, with an edge for each bus segment and each short walk between nearby stops, and find the fastest path with Dijkstra's algorithm. Sketch the graph on paper before writing code.
+
+---
+
+## Merge 2: Server: live NYU bus data from Passio
+
+### Summary
+
+- **New `server/`:** a Python (FastAPI) server that polls Passio GO and serves `/api/static` (routes, stops), `/api/live` (buses, arrival times) and `/api/health`.
+- **Real arrival times:** Passio's own predictions, fetched for every campus stop in one request. `passiogo` has no arrivals, so the server makes Passio's requests directly with `httpx` instead of using the package.
+- **Web app:** `data.js` asks the server first and falls back to the demo files if it can't reach it. Buses and arrival times refresh every 10 s while the page is visible, without moving the map. A notice appears when data is over 90 s old.
+- **Tests:** `pytest` for the converter and the poller, using hand-made and saved Passio responses. No test touches the network.
+- This is core-area code (polling, caching), all written by Claude: read it closely.
+
+### Concepts to learn
+
+| Concept | Why it matters here | Where it shows up |
+|---|---|---|
+| Server-side polling and caching | One request to Passio serves every student | `poller.py` (`Poller`, `Feed`) |
+| Different refresh rates per feed | Routes change monthly, buses every second | `STATIC_INTERVAL`, `LIVE_INTERVAL` |
+| Exponential backoff with a cap | Not hammering a service that's already down | `retry_delay`, `Poller.attempt` |
+| Serving stale data vs. failing | A slightly old bus position beats an error page | `Feed.succeeded` / `Feed.failed`, `showFreshness` in `main.js` |
+| Demand-driven polling | No one is looking at 4 AM, so don't poll | `client_asked`, `_clients_idle`, `_wake` |
+| `asyncio`: tasks, events, `gather` | Two loops and two requests at once in one thread | `Poller.start`, `_loop`, `refresh_live` |
+| Absolute vs. relative times | "Arrives at 9:05" survives caching; "in 3 min" doesn't | `arrivesAt` in `convert_etas`, `toMinutesFromNow` in `data.js` |
+| Adapter layer for an unofficial API | Passio can change without warning; only one file should care | `passio.py` vs. `convert.py` |
+| Pure functions and test fixtures | Testing without the network | `convert.py`, `tests/`, `SavedPassio` |
+| Data minimization | Passio sends driver names; we never pass them on | `convert_etas` docstring |
+| Graceful fallback | The deployed site has no server yet and still works | `loadTransitData` in `data.js` |
+
+### Code to read
+
+| Order | File | What to look for |
+|---|---|---|
+| 1 | `server/bobcatch/passio.py` | The three requests; why `PassioClient` and `SavedPassio` have the same methods |
+| 2 | `server/bobcatch/convert.py` | `campus_route_ids`, then each `convert_*` function. Compare with a file in `server/samples/` |
+| 3 | `server/bobcatch/poller.py` | All of it: `Feed`, `retry_delay`, `_loop`, `attempt`, the idle pause |
+| 4 | `server/bobcatch/app.py` | `lifespan`, the three endpoints, the `Cache-Control` headers, the 503 |
+| 5 | `server/tests/` | What each test pins down, and what isn't tested |
+| 6 | `web/src/data.js` | `loadTransitData`, `loadLiveData`, `toMinutesFromNow` |
+| 7 | `web/src/main.js` | `refreshLiveData`, `showFreshness`, `startLiveUpdates` |
+
+### Questions
+
+**Polling and caching**
+
+- [ ] 1. Passio is asked every 10 s whether 1 or 1,000 students have the app open. Which line of code makes that true?
+- [ ] 2. `Feed.succeeded` replaces `data` as a whole instead of updating its lists in place. What could a client receive if it updated in place and Passio failed halfway?
+- [ ] 3. Passio goes down for 10 minutes. List the delays between attempts (see `retry_delay`). Why have a cap at all, and why not retry every 10 s?
+- [ ] 4. The server has been idle overnight. Predict exactly what the first student's first `/api/live` request gets back, and what the app does with it.
+- [ ] 5. `refresh_live` uses `asyncio.gather` for buses and arrivals. What changes if one of the two requests fails? Is that the behavior you'd want?
+- [ ] 6. `/api/static` may be cached for 5 minutes, but `/api/live` says `no-store`. What would go wrong if live data could be cached by the browser or a CDN?
+
+**Data and time**
+
+- [ ] 7. The server sends `arrivesAt` (a moment in time), and the browser turns it into minutes. What would break if the server sent minutes instead? Think about caching and slow phones.
+- [ ] 8. `toMinutesFromNow` rounds down. Give a case where rounding up would make a student miss the bus.
+- [ ] 9. Routes are picked by "short name is one capital letter", not by a list of ids. Name one way this rule could pick the wrong routes, and how you'd notice.
+
+**Design**
+
+- [ ] 10. Passio changes its response format tomorrow. Which file should need changes, and which tests would tell you?
+- [ ] 11. The deployed site has no server, so `data.js` falls back to demo data. When could falling back silently be harmful, rather than helpful?
+- [ ] 12. Merge 1's questions 14 and 15 asked how you'd handle a Passio outage and polling rates. Compare your answers with what was built. What would you change?
+
+### Decisions
+
+- [ ] Where to host the server (it must run all the time, so not Vercel serverless functions as they are; options include Fly.io, Render, Railway, or a small VM).
+- [ ] Polling rates: 10 s live, 6 h static, pause after 5 min idle. Too fast or slow?
+- [ ] Contact NYU Transportation / Passio about Bobcatch and an official GTFS-Realtime feed before launch, since we rely on undocumented endpoints.
+- [ ] Should the stop card show how old the arrival times are all the time, not only when over 90 s?
+
+### Exercises
+
+1. **Watch it work.** Run the server during the day, open `/api/health`, then the app. Stop your Wi-Fi for two minutes and watch the server log and the app's notice. Explain each log line.
+2. **Write a missing test.** There's no test that the live feed pauses when idle and wakes on `client_asked`. Write one (hint: shorten `IDLE_AFTER` in the test).
+3. **Refresh the samples.** Save new responses in `server/samples/` while buses are running, so `BOBCATCH_SOURCE=saved` shows real campus buses. Check them for personal data first.
