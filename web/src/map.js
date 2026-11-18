@@ -7,6 +7,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import '@maplibre/maplibre-gl-leaflet';
 import { buildRouteLanes, laneSpacingPx, lineWeightPx } from './route-lanes.js';
 import { createBusLayer } from './bus-layer.js';
+import { placeOnRoute, placeToPoint } from './bus-motion.js';
 
 const NYC_CENTER = [40.7205, -73.9925];
 const HIDDEN_BASEMAP_LAYERS = ['boundary_state', 'water_name'];
@@ -16,9 +17,16 @@ const BASEMAP_COLORS = [
   ['water', 'fill-color', '#0c2527'],
   ['landuse_park', 'fill-color', '#16201d'],
 ];
-const STOP_FILL = '#ffffff';
-const STOP_OUTLINE = '#111716';
+// A stop's dot is filled with its route's color, with a white ring so it
+// stands out from the line it sits on. Selected stops turn lime.
+const STOP_RING = '#ffffff';
 const STOP_SELECTED_FILL = '#d9ff57';
+
+/** Radius of a stop's dot: about half a lane, so a shared stop's dots sit in a row across the lanes. */
+function stopRadiusPx(zoom, selected = false) {
+  const radius = laneSpacingPx(zoom) / 2 + 2;
+  return selected ? radius * 1.8 : radius;
+}
 
 /**
  * A polyline whose points are each shifted sideways by a number of pixels, so
@@ -43,6 +51,19 @@ const OffsetPolyline = L.Polyline.extend({
       return shifted;
     });
     result.push(ring);
+  },
+});
+
+/**
+ * A circle shifted sideways onto a route's lane, the same way as OffsetPolyline.
+ * options.offset: [dx, dy] in lane units.
+ */
+const OffsetCircleMarker = L.CircleMarker.extend({
+  _project() {
+    const [dx, dy] = this.options.offset;
+    const spacing = laneSpacingPx(this._map.getZoom());
+    this._point = this._map.latLngToLayerPoint(this._latlng).add(L.point(dx * spacing, dy * spacing));
+    this._updateBounds();
   },
 });
 
@@ -94,12 +115,18 @@ export function createMap(element, { onStopClick, onPopupClose, getPadding }) {
   const routeLayer = L.layerGroup().addTo(map);
   // Lines get wider as you zoom in (their spacing is redone in OffsetPolyline).
   map.on('zoomend', () => {
-    const weight = lineWeightPx(map.getZoom());
-    routeLayer.eachLayer((line) => line.setStyle({ weight }));
+    const zoom = map.getZoom();
+    routeLayer.eachLayer((line) => line.setStyle({ weight: lineWeightPx(zoom) }));
+    for (const [id, markers] of stopMarkers) {
+      const radius = stopRadiusPx(zoom, selectedStopIds.includes(id));
+      markers.forEach((marker) => marker.setRadius(radius));
+    }
   });
   const stopLayer = L.layerGroup().addTo(map);
   const busLayer = createBusLayer(map);
-  const stopMarkers = new Map();
+  const stopMarkers = new Map(); // stopId -> one dot per route serving it
+  const stopLatLngs = new Map(); // stopId -> where the stop really is
+  let selectedStopIds = [];
 
   // The map's box changes size when the phone rotates or the panel collapses.
   // Leaflet has to be told, or it leaves grey gaps.
@@ -110,9 +137,9 @@ export function createMap(element, { onStopClick, onPopupClose, getPadding }) {
     routeLayer.clearLayers();
     stopLayer.clearLayers();
     stopMarkers.clear();
+    stopLatLngs.clear();
 
     const routesById = new Map(routes.map((route) => [route.id, route]));
-    const visibleStopIds = new Set(routes.flatMap((route) => route.stopIds));
 
     // Each route's path (the road it drives), split into lanes where routes share a street.
     const lanes = buildRouteLanes(routes);
@@ -127,26 +154,38 @@ export function createMap(element, { onStopClick, onPopupClose, getPadding }) {
     }
     busLayer.setRoutes(lanes, routesById);
 
-    for (const stop of stops) {
-      if (!visibleStopIds.has(stop.id)) continue;
-      const marker = L.circleMarker([stop.lat, stop.lon], {
-        radius: 5,
-        color: STOP_OUTLINE,
-        weight: 2,
-        fillColor: STOP_FILL,
-        fillOpacity: 1,
-      });
-      marker.bindTooltip(stop.name);
-      marker.on('click', () => onStopClick(stop.id));
-      marker.addTo(stopLayer);
-      stopMarkers.set(stop.id, marker);
+    // One dot per route at each stop, on that route's lane and in its color,
+    // so a stop shared by three routes shows three dots side by side.
+    const stopsById = new Map(stops.map((stop) => [stop.id, stop]));
+    for (const route of routes) {
+      for (const stopId of new Set(route.stopIds)) {
+        const stop = stopsById.get(stopId);
+        if (!stop) continue;
+        stopLatLngs.set(stopId, [stop.lat, stop.lon]);
+        // Find where this route passes the stop (the same snapping as for buses).
+        const point = placeToPoint(lanes, placeOnRoute(lanes, { routeId: route.id, lat: stop.lat, lon: stop.lon }));
+        const marker = new OffsetCircleMarker(point.latlng, {
+          offset: point.offset,
+          radius: stopRadiusPx(map.getZoom()),
+          color: STOP_RING,
+          weight: 1.5,
+          fillColor: route.color,
+          fillOpacity: 1,
+          routeColor: route.color,
+        });
+        marker.bindTooltip(stop.name);
+        marker.on('click', () => onStopClick(stopId));
+        marker.addTo(stopLayer);
+        if (!stopMarkers.has(stopId)) stopMarkers.set(stopId, []);
+        stopMarkers.get(stopId).push(marker);
+      }
     }
 
     renderVehicles(vehicles);
 
-    if (visibleStopIds.size > 0) {
+    if (stopLatLngs.size > 0) {
       const { topLeft, bottomRight } = getPadding();
-      const bounds = L.latLngBounds([...stopMarkers.values()].map((m) => m.getLatLng()));
+      const bounds = L.latLngBounds([...stopLatLngs.values()]);
       map.fitBounds(bounds, { paddingTopLeft: topLeft, paddingBottomRight: bottomRight });
     }
   }
@@ -161,14 +200,17 @@ export function createMap(element, { onStopClick, onPopupClose, getPadding }) {
 
   /** Highlight the given stops and move the map so they are all in view. Pass [] to clear. */
   function highlightStops(stopIds) {
+    selectedStopIds = stopIds;
     const chosen = [];
-    for (const [id, marker] of stopMarkers) {
+    const zoom = map.getZoom();
+    for (const [id, markers] of stopMarkers) {
       const selected = stopIds.includes(id);
-      marker.setStyle({ radius: selected ? 9 : 5, fillColor: selected ? STOP_SELECTED_FILL : STOP_FILL });
-      if (selected) {
-        marker.bringToFront();
-        chosen.push(marker.getLatLng());
+      for (const marker of markers) {
+        const fillColor = selected ? STOP_SELECTED_FILL : marker.options.routeColor;
+        marker.setStyle({ radius: stopRadiusPx(zoom, selected), fillColor });
+        if (selected) marker.bringToFront();
       }
+      if (selected) chosen.push(stopLatLngs.get(id));
     }
     if (chosen.length > 0) showPoints(chosen, 16);
   }
@@ -204,8 +246,8 @@ export function createMap(element, { onStopClick, onPopupClose, getPadding }) {
 
   /** Show `content` in a card that points at the given stop. */
   function openStopPopup(stopId, content) {
-    const marker = stopMarkers.get(stopId);
-    if (marker) popup.setLatLng(marker.getLatLng()).setContent(content).openOn(map);
+    const latlng = stopLatLngs.get(stopId);
+    if (latlng) popup.setLatLng(latlng).setContent(content).openOn(map);
   }
 
   function closeStopPopup() {
