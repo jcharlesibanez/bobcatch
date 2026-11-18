@@ -284,6 +284,10 @@ button {
 .field .eyebrow {
   flex: none;
   width: 46px;
+  /* "From" and "To" read better in sentence case than as small caps. */
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  text-transform: none;
 }
 
 .field select {
