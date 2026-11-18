@@ -3,6 +3,7 @@ import '@fontsource/dm-sans/500.css';
 import '@fontsource/dm-sans/600.css';
 import '@fontsource/dm-sans/700.css';
 import './style.css';
+import { inject } from '@vercel/analytics';
 import { loadTransitData, IS_SAMPLE_DATA } from './data.js';
 import { createMap } from './map.js';
 import { setUpPlanView } from './plan-view.js';
@@ -140,5 +141,9 @@ async function start() {
     showNotice('Could not load bus data. Check your connection and reload.');
   }
 }
+
+// Vercel Web Analytics: counts page views without cookies. It only sends data
+// when the site runs on Vercel; locally it does nothing.
+inject();
 
 start();
