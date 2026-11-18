@@ -11,32 +11,23 @@ Bobcatch is an unofficial, open-source web app (PWA) for NYU students that shows
 
 ## How to work with me (important)
 
-I'm a CS student building this to help my community **and to become a better engineer**. Default to teaching, not autopilot.
+I'm a CS student building this to help my community **and to become a better engineer**.
 
-**Hand off freely** (just do it):
-- Project setup, config, tooling, boilerplate
-- Styling and layout
-- Tests for code I've written, when I ask
+You (Claude) implement everything, including the core areas below. My learning happens through `review.md`, not by writing every line myself.
 
-**Teach, don't just write** (explain first, let me implement):
+Core areas where I most need to understand the code you write:
 - The backend that polls bus data and serves it to clients
 - Caching and polling strategy
 - Merging NYU bus and MTA data
 - Routing / "fastest way there" logic
 
-For these core areas: explain the approach and trade-offs, point me to the relevant concepts, review my code and ask questions about it. Only write a full implementation if I explicitly ask. Then explain it line by line.
-
-**Rule: never commit code I can't explain.** If you write something non-trivial, walk me through it before committing.
-
 ### Learning log (`review.md`)
 
-Every merge gets a section in `review.md`, added on the same branch before the merge. Follow the structure described at the top of that file and add a row to its index.
+Every merge gets a short section in `review.md`, added on the same branch before the merge, plus a row in its index.
 
-- Cover what I need to learn from the change: concepts, which code to read and in what order, questions for me, decisions only I can make, and exercises for me to build.
-- Ask questions that test understanding (explain why, predict, what if), not recall. Prioritize the teach-don't-write areas above.
-- Include a walkthrough only for non-trivial code you wrote in a teach-don't-write area.
-- Keep it an organized document, not a code dump: point to files and function names, not line numbers, which drift.
-- Don't answer the questions in the file. Tick a question only after we've discussed it, and keep the merge's status in the index current.
+- List only what I should learn from the change: key concepts, which code to read, and a few questions that test understanding (why, predict, what if). Focus on the core areas above.
+- Keep it brief. Bullets, not essays; no code dumps; point to files and function names, not line numbers.
+- Don't answer the questions in the file. Tick a question only after we've discussed it, and keep the index status current.
 
 ## Data sources
 
