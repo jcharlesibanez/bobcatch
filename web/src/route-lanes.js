@@ -9,16 +9,30 @@
 // 3. Give each route a lane among the routes sharing that stretch. Lanes are
 //    ordered by route name everywhere, so A is always on the same side of B.
 // 4. Store each point's sideways offset in "lane units". The map multiplies it
-//    by LANE_SPACING_PX, so lines stay a fixed number of pixels apart whatever
-//    the zoom.
+//    by laneSpacingPx(zoom): a few pixels zoomed out, a few more zoomed in,
+//    so lines never overlap however far you zoom out.
 //
 // Nothing here knows about Leaflet; it's plain geometry, tested in
 // route-lanes.test.js.
 
 import { localProjection, sub, dot, unit, length, closestOnSegment } from './geo.js';
 
-/** Pixels between the centers of side-by-side lines. Lines are 4 px wide, so this leaves a 1 px gap. */
-export const LANE_SPACING_PX = 5;
+// Pixels between the centers of side-by-side lines, from zoomed out (whole
+// network) to street level. In between, it grows in a straight line.
+const SPACING_ZOOMED_OUT = { zoom: 13, px: 3.5 };
+const SPACING_ZOOMED_IN = { zoom: 18, px: 7 };
+
+/** Pixels between the centers of side-by-side lines at this zoom level. */
+export function laneSpacingPx(zoom) {
+  const t = (zoom - SPACING_ZOOMED_OUT.zoom) / (SPACING_ZOOMED_IN.zoom - SPACING_ZOOMED_OUT.zoom);
+  const clamped = Math.min(1, Math.max(0, t));
+  return SPACING_ZOOMED_OUT.px + (SPACING_ZOOMED_IN.px - SPACING_ZOOMED_OUT.px) * clamped;
+}
+
+/** How wide to draw route lines at this zoom: 1 px narrower than the spacing, leaving a gap. */
+export function lineWeightPx(zoom) {
+  return laneSpacingPx(zoom) - 1;
+}
 
 const SAMPLE_METERS = 8; // a point at least this often along every line
 const SAME_STREET_METERS = 20; // two lines closer than this may be on the same street

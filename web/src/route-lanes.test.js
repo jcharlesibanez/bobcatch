@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildRouteLanes, pointAlong, removeShortRuns, smoothAlong } from './route-lanes.js';
+import { buildRouteLanes, laneSpacingPx, lineWeightPx, pointAlong, removeShortRuns, smoothAlong } from './route-lanes.js';
 import { route } from './test-helpers.js';
 
 const strandOf = (lanes, id) => lanes.strands.find((strand) => strand.routeId === id);
@@ -75,4 +75,13 @@ test('pointAlong wraps around a loop', () => {
   const strand = strandOf(lanes, '1');
   assert.ok(strand.closed);
   assert.deepEqual(pointAlong(strand, strand.length + 50).latlng, pointAlong(strand, 50).latlng);
+});
+
+test('lanes spread out as you zoom in, and lines never touch', () => {
+  assert.equal(laneSpacingPx(10), laneSpacingPx(13));
+  assert.equal(laneSpacingPx(20), laneSpacingPx(18));
+  for (let zoom = 10; zoom <= 20; zoom += 0.5) {
+    assert.ok(laneSpacingPx(zoom + 0.5) >= laneSpacingPx(zoom));
+    assert.ok(lineWeightPx(zoom) < laneSpacingPx(zoom));
+  }
 });

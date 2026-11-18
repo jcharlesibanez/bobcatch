@@ -19,7 +19,7 @@
 import L from 'leaflet';
 import { readableTextColor } from './colors.js';
 import { makeGlide, placeOnRoute, separateDots } from './bus-motion.js';
-import { LANE_SPACING_PX } from './route-lanes.js';
+import { laneSpacingPx } from './route-lanes.js';
 
 const DOT_SIZE_PX = 18;
 const MIN_GAP_PX = DOT_SIZE_PX + 2; // closest two dot centers may get
@@ -133,14 +133,15 @@ export function createBusLayer(map) {
     // 1. Anchors. Sorted by id so separateDots gets the same order every frame.
     const entries = [...buses.entries()].sort(([a], [b]) => (a < b ? -1 : 1));
     const list = entries.map(([, bus]) => bus);
+    const spacing = laneSpacingPx(map.getZoom());
     const anchors = entries.map(([id, bus]) => {
       const progress = instant ? 1 : Math.min(1, (time - bus.glideStart) / GLIDE_MS);
       if (progress < 1) stillMoving = true;
       const point = bus.glide(easeInOut(progress));
       const pixel = map.latLngToLayerPoint(point.latlng);
       return {
-        x: pixel.x + point.offset[0] * LANE_SPACING_PX,
-        y: pixel.y + point.offset[1] * LANE_SPACING_PX,
+        x: pixel.x + point.offset[0] * spacing,
+        y: pixel.y + point.offset[1] * spacing,
         direction: point.direction && { x: point.direction.x, y: -point.direction.y }, // map y is north, screen y is down
         weight: bus.weight,
         id,

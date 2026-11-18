@@ -5,7 +5,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import '@maplibre/maplibre-gl-leaflet';
-import { buildRouteLanes, LANE_SPACING_PX } from './route-lanes.js';
+import { buildRouteLanes, laneSpacingPx, lineWeightPx } from './route-lanes.js';
 import { createBusLayer } from './bus-layer.js';
 
 const NYC_CENTER = [40.7205, -73.9925];
@@ -35,9 +35,10 @@ const STOP_SELECTED_FILL = '#d9ff57';
 const OffsetPolyline = L.Polyline.extend({
   _projectLatlngs(latlngs, result, projectedBounds) {
     const offsets = this.options.offsets;
+    const spacing = laneSpacingPx(this._map.getZoom());
     const ring = latlngs.map((latlng, i) => {
       const point = this._map.latLngToLayerPoint(latlng);
-      const shifted = L.point(point.x + offsets[i][0] * LANE_SPACING_PX, point.y + offsets[i][1] * LANE_SPACING_PX);
+      const shifted = L.point(point.x + offsets[i][0] * spacing, point.y + offsets[i][1] * spacing);
       projectedBounds.extend(shifted);
       return shifted;
     });
@@ -91,6 +92,11 @@ export function createMap(element, { onStopClick, onPopupClose, getPadding }) {
 
   // One layer group per kind of thing, so each can be redrawn on its own.
   const routeLayer = L.layerGroup().addTo(map);
+  // Lines get wider as you zoom in (their spacing is redone in OffsetPolyline).
+  map.on('zoomend', () => {
+    const weight = lineWeightPx(map.getZoom());
+    routeLayer.eachLayer((line) => line.setStyle({ weight }));
+  });
   const stopLayer = L.layerGroup().addTo(map);
   const busLayer = createBusLayer(map);
   const stopMarkers = new Map();
@@ -112,7 +118,12 @@ export function createMap(element, { onStopClick, onPopupClose, getPadding }) {
     const lanes = buildRouteLanes(routes);
     for (const strand of lanes.strands) {
       const { color } = routesById.get(strand.routeId);
-      new OffsetPolyline(strand.latlngs, { offsets: strand.offsets, color, weight: 4, opacity: 0.95 }).addTo(routeLayer);
+      new OffsetPolyline(strand.latlngs, {
+        offsets: strand.offsets,
+        color,
+        weight: lineWeightPx(map.getZoom()),
+        opacity: 0.95,
+      }).addTo(routeLayer);
     }
     busLayer.setRoutes(lanes, routesById);
 

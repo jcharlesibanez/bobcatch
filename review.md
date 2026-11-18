@@ -185,7 +185,7 @@ As a check, one degree of latitude comes out as 111.2 km.
 | Graceful fallback | The deployed site has no server yet and still works | `loadTransitData` in `data.js` |
 | Local flat coordinates (meters) | Geometry on lat/lon is distorted; meters make distances and angles simple | `geo.js` (`localProjection`) |
 | Spatial grid index | Finding nearby lines without comparing every point with every other | `route-lanes.js` (`buildGrid`, `nearbySegments`) |
-| Offsets in screen pixels vs. meters | Lanes stay 5 px apart at any zoom, so they need recomputing on every zoom | `OffsetPolyline` in `map.js` |
+| Offsets in screen pixels vs. meters | Lanes are 3.5 to 7 px apart depending on zoom, so they need recomputing on every zoom | `OffsetPolyline` in `map.js`, `laneSpacingPx` |
 | Map matching (snapping GPS to a line) | GPS is noisy; a dot should sit on its route, on the right side of a two-way street | `placeOnRoute` in `bus-motion.js` |
 | Collision resolution by relaxation | Pushing pairs apart repeatedly until nothing overlaps | `separateDots`, `pushApart` |
 | Continuity vs. smoothing | Easing the output lags behind fast dots; keeping every input continuous doesn't | `bus-layer.js` header comment, `sidewaysGap` |
@@ -236,7 +236,7 @@ Development notes worth reading before the code: the first version eased each do
 
 **Route lanes and bus dots**
 
-- [ ] 13. Lanes are spaced in pixels, not meters. What would the map look like zoomed out if they were spaced 5 m apart instead? Why does that force `OffsetPolyline` to redo its offsets on every zoom?
+- [ ] 13. Lanes are spaced in pixels, not meters. What would the map look like zoomed out if they were spaced 5 m apart instead? Why does that force `OffsetPolyline` to redo its offsets on every zoom? And why must `lineWeightPx` stay below `laneSpacingPx`?
 - [ ] 14. Two routes on the same two-way street go opposite directions. Walk through `laneUnits` for both and explain why they land on opposite sides, not on top of each other.
 - [ ] 15. Without the grid in `buildGrid`, how would the work in `findSharedStretches` grow with the number of points? Answer in big-O, and estimate it for about 6,000 points.
 - [ ] 16. `placeOnRoute` uses the bus's heading. Describe a real place on an NYU route where snapping by distance alone would put the dot on the wrong side, and what the student would see.
@@ -250,7 +250,7 @@ Development notes worth reading before the code: the first version eased each do
 - [ ] Contact NYU Transportation / Passio about Bobcatch and an official GTFS-Realtime feed before launch, since we rely on undocumented endpoints.
 - [ ] Should the stop card show how old the arrival times are all the time, not only when over 90 s?
 - [ ] Bus dots glide for 2 s after each update. Alternative: glide over the whole 10 s interval so buses always look like they're moving, at the cost of showing them about 10 s late. Which do students want?
-- [ ] At low zoom, the Broadway bundle is 7 lanes (35 px) wide. Keep it, or merge lanes into one line below some zoom level?
+- [x] At low zoom, the Broadway bundle was 7 lanes (35 px) wide. Decided: spacing grows with zoom, 3.5 px at zoom 13 to 7 px at zoom 18 (`laneSpacingPx`), rather than merging lanes when zoomed out.
 
 ### Exercises
 
