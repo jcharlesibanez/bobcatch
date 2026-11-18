@@ -15,7 +15,7 @@ Each merge section has the same parts: Summary, Concepts to learn, Code to read,
 
 | # | Merge | Branch / PR | Status |
 |---|---|---|---|
-| 1 | Project setup, web app, trip planner, dark map, Figma restyle | `claude/new-session-fxobs6` (not merged yet) | Open: 0 of 17 questions |
+| 1 | Project setup, web app, trip planner, dark map, Figma restyle | `claude/new-session-fxobs6`, merged to `main` | Open: 0 of 17 questions |
 
 ---
 
