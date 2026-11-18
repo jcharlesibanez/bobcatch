@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="description" content="Unofficial live NYU bus tracker, built by students." />
+    <meta name="theme-color" content="#111716" />
+    <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <title>Bobcatch</title>
+  </head>
+  <body>
+    <div class="app">
+      <main class="map" id="map" aria-label="Map of buses and stops. Tap a stop to see when buses arrive."></main>
+      <!-- Darkens the top and bottom of the map so the floating controls stay readable. -->
+      <div class="map-shade" aria-hidden="true"></div>
+
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 21s6-4.8 6-11a6 6 0 1 0-12 0c0 6.2 6 11 6 11Z" /><circle cx="12" cy="10" r="2" />
+            </svg>
+          </span>
+          <div>
+            <p class="eyebrow" title="Not affiliated with NYU or Passio">Unofficial</p>
+            <h1 class="brand-name">Bobcatch</h1>
+          </div>
+        </div>
+        <span class="badge" id="data-badge" hidden>Demo data</span>
+      </header>
+
+      <!-- Everything along the bottom: a stop's arrivals or the trip results, then the From/To bar. -->
+      <section class="bottom" id="bottom" aria-label="Plan a trip">
+        <p class="toast" id="status" role="status">Loading…</p>
+        <div class="sheet stop-card" id="stop-card" hidden></div>
+        <ul class="sheet results" id="plan-results" aria-live="polite" hidden></ul>
+
+        <form class="plan-bar" id="plan-form">
+          <div class="field-card">
+            <label class="field">
+              <span class="eyebrow">From</span>
+              <select id="plan-from" required></select>
+            </label>
+            <button class="icon-button" id="plan-locate" type="button" aria-label="Start from the stop nearest me" title="Start from the stop nearest me">
+              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+                <circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+              </svg>
+            </button>
+          </div>
+          <div class="field-card">
+            <label class="field">
+              <span class="eyebrow">To</span>
+              <select id="plan-to" required></select>
+            </label>
+            <button class="icon-button" id="plan-swap" type="button" aria-label="Swap from and to" title="Swap from and to">
+              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M7 4v16M3 8l4-4 4 4M17 20V4M13 16l4 4 4-4" />
+              </svg>
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
