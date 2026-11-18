@@ -1,0 +1,7 @@
+{"buses":{"402848":[{"deviceId":402848,"created":"12:18 AM","createdTime":"12:18 AM","paxLoad":25,"bus":"2959","busId":18009,"userId":"1007","routeBlockId":"225757","latitude":"40.641654800","longitude":"-74.017791800","calculatedCourse":"356.5761287503279","outOfService":0,"more":"101","totalCap":45,"color":"#bcbd22","busName":"2959","busType":null,"routeId":"75154","route":"Brooklyn NYU Langone Shuttle","outdated":0}],"451726":[{"deviceId":451726,"created":"12:18 AM","createdTime":"12:18 AM","paxLoad":0,"bus":"2511","busId":20681,"userId":"1007","routeBlockId":"213266","latitude":"40.751173000","longitude":"-73.990446300","calculatedCourse":"217.68676203010943","outOfService":0,"more":"101","totalCap":64,"color":"#637939","busName":"2511","busType":null,"routeId":"72705","route":"Manhattan Commuter Shuttle Westbound Bus#1","outdated":0}]},"microtime":0.026315927505493164,"time":{"1007":"12:18 AM","2396":"12:18 AM"},"debug":{"systemIds":[1007,"2396"]}}
+
+
+
+
+
+

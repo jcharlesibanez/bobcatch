@@ -1,0 +1,2 @@
+
+{"ETAs":{"0000":[{"reason":"n\/a","secondsSpent":86400,"order":86400,"eta":"no vehicles","routeId":"","busName":"","outOfService":false}]},"time":"2026-11-18 12:19:42 AM","mt":0.06121206283569336,"debug":{"solidETAfailed":["db error You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'and routeId=0  and etaVersionId=1 and arrivalUtc between '2026-11-18 05:19:47' a' at line 1"]}}

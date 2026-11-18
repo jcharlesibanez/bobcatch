@@ -8,3 +8,8 @@ dev-dist/
 
 # graphify knowledge-graph output (local, regenerated on demand)
 graphify-out/
+
+# Python
+__pycache__/
+.venv/
+.pytest_cache/
