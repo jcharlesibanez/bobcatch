@@ -69,7 +69,7 @@ async function loadSample() {
  * Shapes:
  *   routes:   [{ id, shortName, name, color, stopIds: [stopId], path: [[[lat, lon]]] }]
  *   stops:    [{ id, name, lat, lon }]
- *   vehicles: [{ id, routeId, lat, lon }]
+ *   vehicles: [{ id, routeId, lat, lon, heading }]  heading: degrees clockwise from north; may be missing
  *   arrivals: { [stopId]: [{ routeId, minutes }] }
  *   updatedAt: ms timestamp of the live data, or null
  *   isSample: true when showing the saved demo data

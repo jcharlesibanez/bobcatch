@@ -61,12 +61,14 @@ def bus(bus_id, route_id, **extra):
 def test_vehicles_skip_other_routes_parked_and_stale_buses():
     raw = {"buses": {
         "-1": [{"busId": -1}],
-        "a": bus(1, "1"),
+        "a": bus(1, "1", calculatedCourse="18.85315879912224"),
         "b": bus(2, "2"),
         "c": bus(3, "1", outOfService=1),
         "d": bus(4, "1", outdated=1),
     }}
-    assert convert_vehicles(raw, {"1"}) == [{"id": "1", "routeId": "1", "lat": 40.7, "lon": -73.9}]
+    assert convert_vehicles(raw, {"1"}) == [
+        {"id": "1", "routeId": "1", "lat": 40.7, "lon": -73.9, "heading": 18.9},
+    ]
 
 
 def test_vehicles_handle_no_buses():

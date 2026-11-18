@@ -6,7 +6,7 @@ That makes it easy to test with saved responses (see tests/test_convert.py).
 The shapes we serve (the web app's data.js reads these):
     route:    {id, shortName, name, color, stopIds: [stopId], path: [[[lat, lon]]]}
     stop:     {id, name, lat, lon}
-    vehicle:  {id, routeId, lat, lon}
+    vehicle:  {id, routeId, lat, lon, heading}   heading: degrees clockwise from north, or None
     arrivals: {stopId: [{routeId, vehicleId, arrivesAt}]}   arrivesAt = Unix seconds
 """
 
@@ -97,8 +97,17 @@ def convert_vehicles(raw, route_ids):
             "routeId": route_id,
             "lat": float(bus["latitude"]),
             "lon": float(bus["longitude"]),
+            "heading": to_float(bus.get("calculatedCourse")),
         })
     return vehicles
+
+
+def to_float(value):
+    """A number from Passio, which sends numbers as strings, or None if missing."""
+    try:
+        return round(float(value), 1)
+    except (TypeError, ValueError):
+        return None
 
 
 def convert_etas(raw, route_ids):
