@@ -16,7 +16,7 @@ import asyncio
 import logging
 import time
 
-from . import convert
+from . import feeds
 from .passio import PassioError
 
 log = logging.getLogger("bobcatch.poller")
@@ -96,26 +96,11 @@ class Poller:
     # --- One fetch each; the loops below call these -------------------------
 
     async def refresh_static(self):
-        raw = await self.source.fetch_routes_and_stops()
-        routes, stops = convert.convert_routes_and_stops(raw)
-        if not routes:
-            raise PassioError("Passio returned no campus routes")
-        self.static.succeeded({"routes": routes, "stops": stops})
+        self.static.succeeded(await feeds.fetch_static(self.source))
         self._static_ready.set()
 
     async def refresh_live(self):
-        routes = self.static.data["routes"]
-        route_ids = {route["id"] for route in routes}
-        stop_ids = sorted({stop_id for route in routes for stop_id in route["stopIds"]})
-        # Ask for both at once rather than one after the other.
-        raw_vehicles, raw_etas = await asyncio.gather(
-            self.source.fetch_vehicles(),
-            self.source.fetch_etas(stop_ids),
-        )
-        self.live.succeeded({
-            "vehicles": convert.convert_vehicles(raw_vehicles, route_ids),
-            "arrivals": convert.convert_etas(raw_etas, route_ids),
-        })
+        self.live.succeeded(await feeds.fetch_live(self.source, self.static.data["routes"]))
 
     # --- The loops ----------------------------------------------------------
 
