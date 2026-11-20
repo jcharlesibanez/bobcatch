@@ -16,7 +16,7 @@ Each merge section has the same parts: Summary, Concepts to learn, Code to read,
 | # | Merge | Branch / PR | Status |
 |---|---|---|---|
 | 1 | Project setup, web app, trip planner, dark map, Figma restyle | `claude/new-session-fxobs6`, merged to `main` | Open: 0 of 17 questions |
-| 2 | Server: live NYU bus data from Passio; side-by-side route lines and animated bus dots | `claude/intelligent-dirac-1me7i2` | Open: 0 of 18 questions |
+| 2 | Server: live NYU bus data from Passio; side-by-side route lines and animated bus dots; hosting on Vercel | `claude/intelligent-dirac-1me7i2` | Open: 0 of 23 questions |
 
 ---
 
@@ -154,7 +154,7 @@ As a check, one degree of latitude comes out as 111.2 km.
 
 ---
 
-## Merge 2: Server: live NYU bus data from Passio; side-by-side route lines and animated bus dots
+## Merge 2: Server: live NYU bus data from Passio; side-by-side route lines and animated bus dots; hosting on Vercel
 
 ### Summary
 
@@ -166,6 +166,7 @@ As a check, one degree of latitude comes out as 111.2 km.
 - **Bus dots:** buses are dots stuck to their own route's lane. On each update they glide *along the road* to the new position. Dots that would overlap slide aside smoothly, across the street, and back once clear.
 - **Web tests:** `npm test` in `web/` runs Node's built-in test runner on the geometry (no new dependency).
 - The server now also sends each bus's `heading`.
+- **Hosting on Vercel (free):** `/api/static` and `/api/live` also run as Python Vercel Functions (`web/api/`). There's no polling loop there: a function asks Passio when a request reaches it, and Vercel's CDN keeps the answer for 10 s (live) or 6 h (routes and stops). The local server still uses the poller. Both share `bobcatch/feeds.py`.
 - This is core-area code (polling, caching), all written by Claude: read it closely.
 
 ### Concepts to learn
@@ -191,6 +192,10 @@ As a check, one degree of latitude comes out as 111.2 km.
 | Continuity vs. smoothing | Easing the output lags behind fast dots; keeping every input continuous doesn't | `bus-layer.js` header comment, `sidewaysGap` |
 | Hysteresis (remembering a decision) | Stops two dots swapping sides every frame when one passes over the other | `sides` in `separateDots` |
 | `requestAnimationFrame` loops | Animating only while something moves, so an idle map costs no battery | `drawFrame`, `frame` in `bus-layer.js` |
+| Serverless functions vs. long-running servers | A function lives only as long as a request; nothing can run on a timer | `serverless.py` docstring vs. `poller.py` |
+| CDN caching (`max-age`, `stale-while-revalidate`) | The CDN, not our code, decides how often Passio is asked | `LIVE_CDN_CACHE` in `serverless.py`; `x-vercel-cache` response header |
+| Browser cache vs. CDN cache | `Cache-Control` and `Vercel-CDN-Cache-Control` say different things to different caches | `JsonHandler.do_GET` in `web/api/_handler.py` |
+| Best-effort memory in warm instances | Routes may still be in memory from the last request, or may not | `_static_memory` in `serverless.py` |
 
 ### Code to read
 
@@ -208,6 +213,10 @@ As a check, one degree of latitude comes out as 111.2 km.
 | 10 | `web/src/bus-motion.js` | `placeOnRoute`, `makeGlide`, then `separateDots` and `sidewaysGap` |
 | 11 | `web/src/bus-layer.js` | The header comment, `update`, `frame` |
 | 12 | `web/src/*.test.js` | Each test's name says what it protects; find the one that failed during development (see below) |
+| 13 | `server/bobcatch/feeds.py`, then `serverless.py` | The same fetch used two ways; compare `serverless.py` with `poller.py` |
+| 14 | `web/api/live.py`, `web/api/_handler.py`, `web/vercel.json` | How a request becomes a function call, and how `server/bobcatch` gets into the bundle |
+
+Deployment notes: the first deploy built fine but `/api/live` returned 404, because Vercel only treats a Python file as a function if it spells out a top-level `class handler`. A symlink to `server/bobcatch` was then bundled as a dangling link, so the install step in `web/vercel.json` copies the package instead. Both are in `server/README.md` under Deployment.
 
 Development notes worth reading before the code: the first version eased each dot's nudge over time, and dots still overlapped while one bus passed another. The fix wasn't a faster ease but removing every jump from the inputs (`sidewaysGap`, fading `weight`, remembered `sides`). The tests "keeps to one side" and "never makes them overlap" pin those bugs down.
 
@@ -243,9 +252,17 @@ Development notes worth reading before the code: the first version eased each do
 - [ ] 17. Why does a dot glide along the route instead of moving in a straight line from old position to new? When does `makeGlide` give up and use a straight line, and why?
 - [ ] 18. `separateDots` pushes buses on the same street sideways, never forwards or backwards. Why does that matter for someone deciding whether to run for a bus?
 
+**Hosting on Vercel**
+
+- [ ] 19. 500 students open the app in the same 10 seconds. How many requests reach Passio on Vercel? With the local poller? And at 4 AM when no one is looking?
+- [ ] 20. Why can't `poller.py` run on Vercel? What would happen if you started its loop inside a function?
+- [ ] 21. The functions send `Cache-Control: no-store` *and* `Vercel-CDN-Cache-Control: max-age=10`. Who reads each one, and what would go wrong if the browser could cache `/api/live` for 10 s too?
+- [ ] 22. Passio fails. Compare what a student sees with the local server (last good data, backoff) and on Vercel (503, not cached). Which is better, and how could the Vercel version keep serving the last good data?
+- [ ] 23. `_static_memory` keeps routes between requests "while the instance is warm". Why is that only best-effort, and why is it still safe to rely on it?
+
 ### Decisions
 
-- [ ] Where to host the server (it must run all the time, so not Vercel serverless functions as they are; options include Fly.io, Render, Railway, or a small VM).
+- [x] Where to host the server. Decided: Vercel Functions with CDN caching, free, next to the website (the polling server stays for local development).
 - [ ] Polling rates: 10 s live, 6 h static, pause after 5 min idle. Too fast or slow?
 - [ ] Contact NYU Transportation / Passio about Bobcatch and an official GTFS-Realtime feed before launch, since we rely on undocumented endpoints.
 - [ ] Should the stop card show how old the arrival times are all the time, not only when over 90 s?

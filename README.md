@@ -55,6 +55,8 @@ pip install -r requirements-dev.txt
 uvicorn bobcatch.app:app --reload --port 8000
 ```
 
+When deployed on Vercel, the same API runs as Python functions in `web/api/` with no separate server to host; see "Deployment" in [`server/README.md`](server/README.md).
+
 Never commit secrets. Put API keys and credentials in a `.env` file (already listed in `.gitignore`).
 
 ## Contributing
