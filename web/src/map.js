@@ -5,7 +5,9 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import '@maplibre/maplibre-gl-leaflet';
-import { readableTextColor } from './colors.js';
+import { buildRouteLanes, laneSpacingPx, lineWeightPx } from './route-lanes.js';
+import { createBusLayer } from './bus-layer.js';
+import { placeOnRoute, placeToPoint } from './bus-motion.js';
 
 const NYC_CENTER = [40.7205, -73.9925];
 const HIDDEN_BASEMAP_LAYERS = ['boundary_state', 'water_name'];
@@ -15,9 +17,55 @@ const BASEMAP_COLORS = [
   ['water', 'fill-color', '#0c2527'],
   ['landuse_park', 'fill-color', '#16201d'],
 ];
-const STOP_FILL = '#ffffff';
-const STOP_OUTLINE = '#111716';
+// A stop's dot is filled with its route's color, with a white ring so it
+// stands out from the line it sits on. Selected stops turn lime.
+const STOP_RING = '#ffffff';
 const STOP_SELECTED_FILL = '#d9ff57';
+
+/** Radius of a stop's dot: about half a lane, so a shared stop's dots sit in a row across the lanes. */
+function stopRadiusPx(zoom, selected = false) {
+  const radius = laneSpacingPx(zoom) / 2 + 2;
+  return selected ? radius * 1.8 : radius;
+}
+
+/**
+ * A polyline whose points are each shifted sideways by a number of pixels, so
+ * lines sharing a street can sit side by side (see route-lanes.js).
+ *
+ * Leaflet turns a line's points into screen pixels in `_projectLatlngs`, again
+ * after every zoom. We shift each point right after that, so the gap between
+ * lines is the same number of pixels at every zoom. This relies on a Leaflet
+ * 1.9 internal, the same one the Leaflet.PolylineOffset plugin uses; check it
+ * still exists after upgrading Leaflet.
+ *
+ * options.offsets: one [dx, dy] per point, in lane units (x right, y down).
+ */
+const OffsetPolyline = L.Polyline.extend({
+  _projectLatlngs(latlngs, result, projectedBounds) {
+    const offsets = this.options.offsets;
+    const spacing = laneSpacingPx(this._map.getZoom());
+    const ring = latlngs.map((latlng, i) => {
+      const point = this._map.latLngToLayerPoint(latlng);
+      const shifted = L.point(point.x + offsets[i][0] * spacing, point.y + offsets[i][1] * spacing);
+      projectedBounds.extend(shifted);
+      return shifted;
+    });
+    result.push(ring);
+  },
+});
+
+/**
+ * A circle shifted sideways onto a route's lane, the same way as OffsetPolyline.
+ * options.offset: [dx, dy] in lane units.
+ */
+const OffsetCircleMarker = L.CircleMarker.extend({
+  _project() {
+    const [dx, dy] = this.options.offset;
+    const spacing = laneSpacingPx(this._map.getZoom());
+    this._point = this._map.latLngToLayerPoint(this._latlng).add(L.point(dx * spacing, dy * spacing));
+    this._updateBounds();
+  },
+});
 
 /**
  * @param element  where to draw the map
@@ -65,9 +113,20 @@ export function createMap(element, { onStopClick, onPopupClose, getPadding }) {
 
   // One layer group per kind of thing, so each can be redrawn on its own.
   const routeLayer = L.layerGroup().addTo(map);
+  // Lines get wider as you zoom in (their spacing is redone in OffsetPolyline).
+  map.on('zoomend', () => {
+    const zoom = map.getZoom();
+    routeLayer.eachLayer((line) => line.setStyle({ weight: lineWeightPx(zoom) }));
+    for (const [id, markers] of stopMarkers) {
+      const radius = stopRadiusPx(zoom, selectedStopIds.includes(id));
+      markers.forEach((marker) => marker.setRadius(radius));
+    }
+  });
   const stopLayer = L.layerGroup().addTo(map);
-  const vehicleLayer = L.layerGroup().addTo(map);
-  const stopMarkers = new Map();
+  const busLayer = createBusLayer(map);
+  const stopMarkers = new Map(); // stopId -> one dot per route serving it
+  const stopLatLngs = new Map(); // stopId -> where the stop really is
+  let selectedStopIds = [];
 
   // The map's box changes size when the phone rotates or the panel collapses.
   // Leaflet has to be told, or it leaves grey gaps.
@@ -77,66 +136,81 @@ export function createMap(element, { onStopClick, onPopupClose, getPadding }) {
   function render({ routes, stops, vehicles }) {
     routeLayer.clearLayers();
     stopLayer.clearLayers();
-    vehicleLayer.clearLayers();
     stopMarkers.clear();
+    stopLatLngs.clear();
 
-    const stopsById = new Map(stops.map((stop) => [stop.id, stop]));
     const routesById = new Map(routes.map((route) => [route.id, route]));
-    const visibleStopIds = new Set();
 
+    // Each route's path (the road it drives), split into lanes where routes share a street.
+    const lanes = buildRouteLanes(routes);
+    for (const strand of lanes.strands) {
+      const { color } = routesById.get(strand.routeId);
+      new OffsetPolyline(strand.latlngs, {
+        offsets: strand.offsets,
+        color,
+        weight: lineWeightPx(map.getZoom()),
+        opacity: 0.95,
+      }).addTo(routeLayer);
+    }
+    busLayer.setRoutes(lanes, routesById);
+
+    // One dot per route at each stop, on that route's lane and in its color,
+    // so a stop shared by three routes shows three dots side by side.
+    const stopsById = new Map(stops.map((stop) => [stop.id, stop]));
     for (const route of routes) {
-      // route.path is the road the bus actually drives: a list of lines, each a list of [lat, lon].
-      L.polyline(route.path, { color: route.color, weight: 4, opacity: 0.9 }).addTo(routeLayer);
-      route.stopIds.forEach((id) => visibleStopIds.add(id));
+      for (const stopId of new Set(route.stopIds)) {
+        const stop = stopsById.get(stopId);
+        if (!stop) continue;
+        stopLatLngs.set(stopId, [stop.lat, stop.lon]);
+        // Find where this route passes the stop (the same snapping as for buses).
+        const point = placeToPoint(lanes, placeOnRoute(lanes, { routeId: route.id, lat: stop.lat, lon: stop.lon }));
+        const marker = new OffsetCircleMarker(point.latlng, {
+          offset: point.offset,
+          radius: stopRadiusPx(map.getZoom()),
+          color: STOP_RING,
+          weight: 1.5,
+          fillColor: route.color,
+          fillOpacity: 1,
+          routeColor: route.color,
+        });
+        marker.bindTooltip(stop.name);
+        marker.on('click', () => onStopClick(stopId));
+        marker.addTo(stopLayer);
+        if (!stopMarkers.has(stopId)) stopMarkers.set(stopId, []);
+        stopMarkers.get(stopId).push(marker);
+      }
     }
 
-    for (const stop of stops) {
-      if (!visibleStopIds.has(stop.id)) continue;
-      const marker = L.circleMarker([stop.lat, stop.lon], {
-        radius: 5,
-        color: STOP_OUTLINE,
-        weight: 2,
-        fillColor: STOP_FILL,
-        fillOpacity: 1,
-      });
-      marker.bindTooltip(stop.name);
-      marker.on('click', () => onStopClick(stop.id));
-      marker.addTo(stopLayer);
-      stopMarkers.set(stop.id, marker);
-    }
+    renderVehicles(vehicles);
 
-    for (const vehicle of vehicles) {
-      const route = routesById.get(vehicle.routeId);
-      if (!route) continue;
-      const badge = document.createElement('span');
-      badge.className = 'bus-marker';
-      badge.style.background = route.color;
-      badge.style.color = readableTextColor(route.color);
-      badge.textContent = route.shortName;
-      L.marker([vehicle.lat, vehicle.lon], {
-        icon: L.divIcon({ html: badge, className: '', iconSize: [28, 28] }),
-        title: `${route.name} bus`,
-        zIndexOffset: 1000,
-      }).addTo(vehicleLayer);
-    }
-
-    if (visibleStopIds.size > 0) {
+    if (stopLatLngs.size > 0) {
       const { topLeft, bottomRight } = getPadding();
-      const bounds = L.latLngBounds([...stopMarkers.values()].map((m) => m.getLatLng()));
+      const bounds = L.latLngBounds([...stopLatLngs.values()]);
       map.fitBounds(bounds, { paddingTopLeft: topLeft, paddingBottomRight: bottomRight });
     }
   }
 
+  /**
+   * Move the buses to fresh positions. Called every few seconds, so it leaves
+   * the routes, stops and the map's view alone.
+   */
+  function renderVehicles(vehicles) {
+    busLayer.update(vehicles);
+  }
+
   /** Highlight the given stops and move the map so they are all in view. Pass [] to clear. */
   function highlightStops(stopIds) {
+    selectedStopIds = stopIds;
     const chosen = [];
-    for (const [id, marker] of stopMarkers) {
+    const zoom = map.getZoom();
+    for (const [id, markers] of stopMarkers) {
       const selected = stopIds.includes(id);
-      marker.setStyle({ radius: selected ? 9 : 5, fillColor: selected ? STOP_SELECTED_FILL : STOP_FILL });
-      if (selected) {
-        marker.bringToFront();
-        chosen.push(marker.getLatLng());
+      for (const marker of markers) {
+        const fillColor = selected ? STOP_SELECTED_FILL : marker.options.routeColor;
+        marker.setStyle({ radius: stopRadiusPx(zoom, selected), fillColor });
+        if (selected) marker.bringToFront();
       }
+      if (selected) chosen.push(stopLatLngs.get(id));
     }
     if (chosen.length > 0) showPoints(chosen, 16);
   }
@@ -172,13 +246,13 @@ export function createMap(element, { onStopClick, onPopupClose, getPadding }) {
 
   /** Show `content` in a card that points at the given stop. */
   function openStopPopup(stopId, content) {
-    const marker = stopMarkers.get(stopId);
-    if (marker) popup.setLatLng(marker.getLatLng()).setContent(content).openOn(map);
+    const latlng = stopLatLngs.get(stopId);
+    if (latlng) popup.setLatLng(latlng).setContent(content).openOn(map);
   }
 
   function closeStopPopup() {
     map.closePopup(popup);
   }
 
-  return { render, highlightStops, showUserLocation, openStopPopup, closeStopPopup };
+  return { render, renderVehicles, highlightStops, showUserLocation, openStopPopup, closeStopPopup };
 }

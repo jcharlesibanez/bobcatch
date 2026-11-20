@@ -16,6 +16,7 @@ Each merge section has the same parts: Summary, Concepts to learn, Code to read,
 | # | Merge | Branch / PR | Status |
 |---|---|---|---|
 | 1 | Project setup, web app, trip planner, dark map, Figma restyle | `claude/new-session-fxobs6`, merged to `main` | Open: 0 of 17 questions |
+| 2 | Server: live NYU bus data from Passio; side-by-side route lines and animated bus dots; hosting on Vercel | `claude/intelligent-dirac-1me7i2` | Open: 0 of 23 questions |
 
 ---
 
@@ -150,3 +151,127 @@ As a check, one degree of latitude comes out as 111.2 km.
 1. **Your first server step.** Write a Python script that calls `passiogo` once for NYU (system id `1007`) and prints routes, stops and vehicles. Compare what you get with the shapes in `web/public/sample/` and decide what your server's JSON should look like.
 2. **Tests for the planner.** List five stop pairs and the answer you expect for each, before running anything. Then write them as tests. Include at least one loop route and one pair with no direct bus.
 3. **Transfers (larger).** Model stops as nodes in a graph, with an edge for each bus segment and each short walk between nearby stops, and find the fastest path with Dijkstra's algorithm. Sketch the graph on paper before writing code.
+
+---
+
+## Merge 2: Server: live NYU bus data from Passio; side-by-side route lines and animated bus dots; hosting on Vercel
+
+### Summary
+
+- **New `server/`:** a Python (FastAPI) server that polls Passio GO and serves `/api/static` (routes, stops), `/api/live` (buses, arrival times) and `/api/health`.
+- **Real arrival times:** Passio's own predictions, fetched for every campus stop in one request. `passiogo` has no arrivals, so the server makes Passio's requests directly with `httpx` instead of using the package.
+- **Web app:** `data.js` asks the server first and falls back to the demo files if it can't reach it. Buses and arrival times refresh every 10 s while the page is visible, without moving the map. A notice appears when data is over 90 s old.
+- **Tests:** `pytest` for the converter and the poller, using hand-made and saved Passio responses. No test touches the network.
+- **Side-by-side route lines:** where routes share a street, each gets its own lane a fixed number of pixels apart, so every line stays visible at every zoom.
+- **Bus dots:** buses are dots stuck to their own route's lane. On each update they glide *along the road* to the new position. Dots that would overlap slide aside smoothly, across the street, and back once clear.
+- **Web tests:** `npm test` in `web/` runs Node's built-in test runner on the geometry (no new dependency).
+- The server now also sends each bus's `heading`.
+- **Hosting on Vercel (free):** `/api/static` and `/api/live` also run as Python Vercel Functions (`web/api/`). There's no polling loop there: a function asks Passio when a request reaches it, and Vercel's CDN keeps the answer for 10 s (live) or 6 h (routes and stops). The local server still uses the poller. Both share `bobcatch/feeds.py`.
+- This is core-area code (polling, caching), all written by Claude: read it closely.
+
+### Concepts to learn
+
+| Concept | Why it matters here | Where it shows up |
+|---|---|---|
+| Server-side polling and caching | One request to Passio serves every student | `poller.py` (`Poller`, `Feed`) |
+| Different refresh rates per feed | Routes change monthly, buses every second | `STATIC_INTERVAL`, `LIVE_INTERVAL` |
+| Exponential backoff with a cap | Not hammering a service that's already down | `retry_delay`, `Poller.attempt` |
+| Serving stale data vs. failing | A slightly old bus position beats an error page | `Feed.succeeded` / `Feed.failed`, `showFreshness` in `main.js` |
+| Demand-driven polling | No one is looking at 4 AM, so don't poll | `client_asked`, `_clients_idle`, `_wake` |
+| `asyncio`: tasks, events, `gather` | Two loops and two requests at once in one thread | `Poller.start`, `_loop`, `refresh_live` |
+| Absolute vs. relative times | "Arrives at 9:05" survives caching; "in 3 min" doesn't | `arrivesAt` in `convert_etas`, `toMinutesFromNow` in `data.js` |
+| Adapter layer for an unofficial API | Passio can change without warning; only one file should care | `passio.py` vs. `convert.py` |
+| Pure functions and test fixtures | Testing without the network | `convert.py`, `tests/`, `SavedPassio` |
+| Data minimization | Passio sends driver names; we never pass them on | `convert_etas` docstring |
+| Graceful fallback | The deployed site has no server yet and still works | `loadTransitData` in `data.js` |
+| Local flat coordinates (meters) | Geometry on lat/lon is distorted; meters make distances and angles simple | `geo.js` (`localProjection`) |
+| Spatial grid index | Finding nearby lines without comparing every point with every other | `route-lanes.js` (`buildGrid`, `nearbySegments`) |
+| Offsets in screen pixels vs. meters | Lanes are 3.5 to 7 px apart depending on zoom, so they need recomputing on every zoom | `OffsetPolyline` in `map.js`, `laneSpacingPx` |
+| Map matching (snapping GPS to a line) | GPS is noisy; a dot should sit on its route, on the right side of a two-way street | `placeOnRoute` in `bus-motion.js` |
+| Collision resolution by relaxation | Pushing pairs apart repeatedly until nothing overlaps | `separateDots`, `pushApart` |
+| Continuity vs. smoothing | Easing the output lags behind fast dots; keeping every input continuous doesn't | `bus-layer.js` header comment, `sidewaysGap` |
+| Hysteresis (remembering a decision) | Stops two dots swapping sides every frame when one passes over the other | `sides` in `separateDots` |
+| `requestAnimationFrame` loops | Animating only while something moves, so an idle map costs no battery | `drawFrame`, `frame` in `bus-layer.js` |
+| Serverless functions vs. long-running servers | A function lives only as long as a request; nothing can run on a timer | `serverless.py` docstring vs. `poller.py` |
+| CDN caching (`max-age`, `stale-while-revalidate`) | The CDN, not our code, decides how often Passio is asked | `LIVE_CDN_CACHE` in `serverless.py`; `x-vercel-cache` response header |
+| Browser cache vs. CDN cache | `Cache-Control` and `Vercel-CDN-Cache-Control` say different things to different caches | `JsonHandler.do_GET` in `web/api/_handler.py` |
+| Best-effort memory in warm instances | Routes may still be in memory from the last request, or may not | `_static_memory` in `serverless.py` |
+
+### Code to read
+
+| Order | File | What to look for |
+|---|---|---|
+| 1 | `server/bobcatch/passio.py` | The three requests; why `PassioClient` and `SavedPassio` have the same methods |
+| 2 | `server/bobcatch/convert.py` | `campus_route_ids`, then each `convert_*` function. Compare with a file in `server/samples/` |
+| 3 | `server/bobcatch/poller.py` | All of it: `Feed`, `retry_delay`, `_loop`, `attempt`, the idle pause |
+| 4 | `server/bobcatch/app.py` | `lifespan`, the three endpoints, the `Cache-Control` headers, the 503 |
+| 5 | `server/tests/` | What each test pins down, and what isn't tested |
+| 6 | `web/src/data.js` | `loadTransitData`, `loadLiveData`, `toMinutesFromNow` |
+| 7 | `web/src/main.js` | `refreshLiveData`, `showFreshness`, `startLiveUpdates` |
+| 8 | `web/src/route-lanes.js` | The four steps in the header comment, then `findSharedStretches`, `laneUnits`, `smoothAlong` |
+| 9 | `web/src/map.js` | `OffsetPolyline`: the only place lanes touch Leaflet |
+| 10 | `web/src/bus-motion.js` | `placeOnRoute`, `makeGlide`, then `separateDots` and `sidewaysGap` |
+| 11 | `web/src/bus-layer.js` | The header comment, `update`, `frame` |
+| 12 | `web/src/*.test.js` | Each test's name says what it protects; find the one that failed during development (see below) |
+| 13 | `server/bobcatch/feeds.py`, then `serverless.py` | The same fetch used two ways; compare `serverless.py` with `poller.py` |
+| 14 | `web/api/live.py`, `web/api/_handler.py`, `web/vercel.json` | How a request becomes a function call, and how `server/bobcatch` gets into the bundle |
+
+Deployment notes: the first deploy built fine but `/api/live` returned 404, because Vercel only treats a Python file as a function if it spells out a top-level `class handler`. A symlink to `server/bobcatch` was then bundled as a dangling link, so the install step in `web/vercel.json` copies the package instead. Both are in `server/README.md` under Deployment.
+
+Development notes worth reading before the code: the first version eased each dot's nudge over time, and dots still overlapped while one bus passed another. The fix wasn't a faster ease but removing every jump from the inputs (`sidewaysGap`, fading `weight`, remembered `sides`). The tests "keeps to one side" and "never makes them overlap" pin those bugs down.
+
+### Questions
+
+**Polling and caching**
+
+- [ ] 1. Passio is asked every 10 s whether 1 or 1,000 students have the app open. Which line of code makes that true?
+- [ ] 2. `Feed.succeeded` replaces `data` as a whole instead of updating its lists in place. What could a client receive if it updated in place and Passio failed halfway?
+- [ ] 3. Passio goes down for 10 minutes. List the delays between attempts (see `retry_delay`). Why have a cap at all, and why not retry every 10 s?
+- [ ] 4. The server has been idle overnight. Predict exactly what the first student's first `/api/live` request gets back, and what the app does with it.
+- [ ] 5. `refresh_live` uses `asyncio.gather` for buses and arrivals. What changes if one of the two requests fails? Is that the behavior you'd want?
+- [ ] 6. `/api/static` may be cached for 5 minutes, but `/api/live` says `no-store`. What would go wrong if live data could be cached by the browser or a CDN?
+
+**Data and time**
+
+- [ ] 7. The server sends `arrivesAt` (a moment in time), and the browser turns it into minutes. What would break if the server sent minutes instead? Think about caching and slow phones.
+- [ ] 8. `toMinutesFromNow` rounds down. Give a case where rounding up would make a student miss the bus.
+- [ ] 9. Routes are picked by "short name is one capital letter", not by a list of ids. Name one way this rule could pick the wrong routes, and how you'd notice.
+
+**Design**
+
+- [ ] 10. Passio changes its response format tomorrow. Which file should need changes, and which tests would tell you?
+- [ ] 11. The deployed site has no server, so `data.js` falls back to demo data. When could falling back silently be harmful, rather than helpful?
+- [ ] 12. Merge 1's questions 14 and 15 asked how you'd handle a Passio outage and polling rates. Compare your answers with what was built. What would you change?
+
+**Route lanes and bus dots**
+
+- [ ] 13. Lanes are spaced in pixels, not meters. What would the map look like zoomed out if they were spaced 5 m apart instead? Why does that force `OffsetPolyline` to redo its offsets on every zoom? And why must `lineWeightPx` stay below `laneSpacingPx`?
+- [ ] 14. Two routes on the same two-way street go opposite directions. Walk through `laneUnits` for both and explain why they land on opposite sides, not on top of each other.
+- [ ] 15. Without the grid in `buildGrid`, how would the work in `findSharedStretches` grow with the number of points? Answer in big-O, and estimate it for about 6,000 points.
+- [ ] 16. `placeOnRoute` uses the bus's heading. Describe a real place on an NYU route where snapping by distance alone would put the dot on the wrong side, and what the student would see.
+- [ ] 17. Why does a dot glide along the route instead of moving in a straight line from old position to new? When does `makeGlide` give up and use a straight line, and why?
+- [ ] 18. `separateDots` pushes buses on the same street sideways, never forwards or backwards. Why does that matter for someone deciding whether to run for a bus?
+
+**Hosting on Vercel**
+
+- [ ] 19. 500 students open the app in the same 10 seconds. How many requests reach Passio on Vercel? With the local poller? And at 4 AM when no one is looking?
+- [ ] 20. Why can't `poller.py` run on Vercel? What would happen if you started its loop inside a function?
+- [ ] 21. The functions send `Cache-Control: no-store` *and* `Vercel-CDN-Cache-Control: max-age=10`. Who reads each one, and what would go wrong if the browser could cache `/api/live` for 10 s too?
+- [ ] 22. Passio fails. Compare what a student sees with the local server (last good data, backoff) and on Vercel (503, not cached). Which is better, and how could the Vercel version keep serving the last good data?
+- [ ] 23. `_static_memory` keeps routes between requests "while the instance is warm". Why is that only best-effort, and why is it still safe to rely on it?
+
+### Decisions
+
+- [x] Where to host the server. Decided: Vercel Functions with CDN caching, free, next to the website (the polling server stays for local development).
+- [ ] Polling rates: 10 s live, 6 h static, pause after 5 min idle. Too fast or slow?
+- [ ] Contact NYU Transportation / Passio about Bobcatch and an official GTFS-Realtime feed before launch, since we rely on undocumented endpoints.
+- [ ] Should the stop card show how old the arrival times are all the time, not only when over 90 s?
+- [ ] Bus dots glide for 2 s after each update. Alternative: glide over the whole 10 s interval so buses always look like they're moving, at the cost of showing them about 10 s late. Which do students want?
+- [x] At low zoom, the Broadway bundle was 7 lanes (35 px) wide. Decided: spacing grows with zoom, 3.5 px at zoom 13 to 7 px at zoom 18 (`laneSpacingPx`), rather than merging lanes when zoomed out.
+
+### Exercises
+
+1. **Watch it work.** Run the server during the day, open `/api/health`, then the app. Stop your Wi-Fi for two minutes and watch the server log and the app's notice. Explain each log line.
+2. **Write a missing test.** There's no test that the live feed pauses when idle and wakes on `client_asked`. Write one (hint: shorten `IDLE_AFTER` in the test).
+3. **Tune the lanes.** Change `SAME_STREET_METERS`, `MIN_RUN_METERS` and `TAPER_METERS` in `route-lanes.js` one at a time and look at Broadway and First Avenue. Predict what each will do first.
+4. **Refresh the samples.** Save new responses in `server/samples/` while buses are running, so `BOBCATCH_SOURCE=saved` shows real campus buses. Check them for personal data first.
