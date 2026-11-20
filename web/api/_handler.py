@@ -12,20 +12,26 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent / "_lib"))
 
 
-def make_handler(respond):
-    """A Vercel request handler class that answers GET with `respond()`."""
+class JsonHandler(BaseHTTPRequestHandler):
+    """Answers GET with the (status, body, cdn_cache) that `respond()` returns.
 
-    class Handler(BaseHTTPRequestHandler):
-        def do_GET(self):
-            status, body, cdn_cache = respond()
-            payload = json.dumps(body, separators=(",", ":")).encode()
-            self.send_response(status)
-            self.send_header("Content-Type", "application/json")
-            # Browsers always ask again; Vercel's CDN does the caching.
-            self.send_header("Cache-Control", "no-store")
-            if cdn_cache:
-                self.send_header("Vercel-CDN-Cache-Control", cdn_cache)
-            self.end_headers()
-            self.wfile.write(payload)
+    Each endpoint file defines `class handler(JsonHandler)` with its own
+    `respond`. Vercel looks for a top-level `class handler` in the file's text
+    to decide that the file is a function, so it must be written out that way.
+    """
 
-    return Handler
+    @staticmethod
+    def respond():
+        raise NotImplementedError
+
+    def do_GET(self):
+        status, body, cdn_cache = self.respond()
+        payload = json.dumps(body, separators=(",", ":")).encode()
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json")
+        # Browsers always ask again; Vercel's CDN does the caching.
+        self.send_header("Cache-Control", "no-store")
+        if cdn_cache:
+            self.send_header("Vercel-CDN-Cache-Control", cdn_cache)
+        self.end_headers()
+        self.wfile.write(payload)

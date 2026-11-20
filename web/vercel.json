@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "rm -rf api/_lib && mkdir -p api/_lib && cp -R ../server/bobcatch api/_lib/bobcatch && npm install",
+  "functions": {
+    "api/{live,static}.py": {
+      "maxDuration": 15,
+      "excludeFiles": "{node_modules,src,public,dist,dev-dist,api/_lib/bobcatch/__pycache__}/**"
+    }
+  }
+}

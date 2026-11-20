@@ -5,7 +5,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from _handler import make_handler  # noqa: E402
+from _handler import JsonHandler  # noqa: E402
 from bobcatch.serverless import static_response  # noqa: E402
 
-handler = make_handler(static_response)
+
+class handler(JsonHandler):
+    respond = staticmethod(static_response)

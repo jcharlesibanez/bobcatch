@@ -13,3 +13,6 @@ graphify-out/
 __pycache__/
 .venv/
 .pytest_cache/
+
+# Copy of server/bobcatch made by Vercel's install step (see web/vercel.json)
+web/api/_lib/
